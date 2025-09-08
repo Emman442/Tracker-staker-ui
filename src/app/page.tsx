@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Header } from '@/components/layout/Header';
-import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableHeader,
@@ -28,57 +27,50 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
-const stakeFormSchema = z.object({
+const formSchema = z.object({
   amount: z
     .number({ invalid_type_error: 'Please enter a valid number.' })
     .positive({ message: 'Amount must be positive.' })
     .min(0.000001, { message: 'Amount is too small.' }),
 });
 
-type StakeFormValues = z.infer<typeof stakeFormSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-const unstakeFormSchema = z.object({
-  amount: z
-    .number({ invalid_type_error: 'Please enter a valid number.' })
-    .positive({ message: 'Amount must be positive.' })
-    .min(0.000001, { message: 'Amount is too small.' }),
-});
-
-type UnstakeFormValues = z.infer<typeof unstakeFormSchema>;
-
-const UsdcIconSm = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-        <path d="M12.9248 7.375H10.1648V8.695H12.8048C13.2948 8.695 13.6348 8.785 13.8248 8.965C14.0148 9.145 14.1098 9.425 14.1098 9.805C14.1098 10.185 14.0148 10.465 13.8248 10.645C13.6348 10.825 13.2948 10.915 12.8048 10.915H9.68477V12.235H12.9248C13.4148 12.235 13.7548 12.325 13.9448 12.505C14.1348 12.685 14.2298 12.965 14.2298 13.345C14.2298 13.725 14.1348 14.005 13.9448 14.185C13.7548 14.365 13.4148 14.455 12.9248 14.455H10.1648V15.775H12.9248C13.8448 15.775 14.5348 15.545 14.9948 15.085C15.4548 14.625 15.6848 13.995 15.6848 13.195C15.6848 12.445 15.4648 11.835 15.0248 11.365C14.5848 10.895 13.9448 10.66 13.1048 10.66C13.9548 10.59 14.6098 10.355 15.0698 9.955C15.5298 9.555 15.7598 8.975 15.7598 8.215C15.7598 7.425 15.4948 6.795 14.9648 6.325C14.4348 5.855 13.7348 5.625 12.8648 5.625H8.70477V17.525H10.1648V16.205H12.9248C13.8448 16.205 14.5448 16.435 15.0248 16.9C15.5048 17.365 15.7448 17.995 15.7448 18.79H17.1848V7.375H12.9248Z" fill="currentColor"/>
+const TrackerIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 17L12 22L22 17" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
 )
 
 export default function StakingPage() {
-  const [userTrackerBalance, setUserTrackerBalance] = useState(9.990478);
+  const [userTrackerBalance, setUserTrackerBalance] = useState(1337.42);
   const [stakedBalance, setStakedBalance] = useState(0);
   const [stakeDate, setStakeDate] = useState<Date | null>(null);
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isStaking, setIsStaking] = useState(false);
   const { toast } = useToast();
-  const [lockupPeriod, setLockupPeriod] = useState(7);
+  const [lockupPeriod, setLockupPeriod] = useState(30);
+  const [activeTab, setActiveTab] = useState('stake');
 
-  const stakeForm = useForm<StakeFormValues>({
-    resolver: zodResolver(stakeFormSchema),
-  });
-
-  const unstakeForm = useForm<UnstakeFormValues>({
-    resolver: zodResolver(unstakeFormSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      amount: 0,
+    }
   });
 
   const unlockDate = stakeDate ? add(stakeDate, { days: lockupPeriod }) : null;
 
-  function handleStake(data: StakeFormValues) {
+  function handleStake(data: FormValues) {
     if (data.amount > userTrackerBalance) {
       toast({
         variant: 'destructive',
         title: 'Insufficient Balance',
-        description: 'You do not have enough USDC to stake this amount.',
+        description: 'You do not have enough $TRACKER to stake this amount.',
       });
       return;
     }
@@ -89,14 +81,14 @@ export default function StakingPage() {
       setStakeDate(new Date());
       toast({
         title: 'Stake Successful',
-        description: `You have successfully staked ${data.amount} USDC.`,
+        description: `You have successfully staked ${data.amount} $TRACKER.`,
       });
-      stakeForm.reset({ amount: 0 });
+      form.reset({ amount: 0 });
       setIsStaking(false);
     }, 1000);
   }
 
-  async function handleUnstake(data: UnstakeFormValues) {
+  async function handleUnstake(data: FormValues) {
     setIsUnstaking(true);
     if (!stakeDate) {
       toast({
@@ -133,9 +125,9 @@ export default function StakingPage() {
         }
         toast({
           title: 'Unstake Successful',
-          description: `You have successfully unstaked ${result.unlockedBalance} USDC.`,
+          description: `You have successfully unstaked ${result.unlockedBalance} $TRACKER.`,
         });
-        unstakeForm.reset({ amount: 0 });
+        form.reset({ amount: 0 });
       } else {
         toast({
           variant: 'destructive',
@@ -154,181 +146,137 @@ export default function StakingPage() {
     }
   }
 
-  function handleClaimRewards() {
-    toast({
-      title: 'Rewards Claimed',
-      description: `Claim functionality not implemented.`,
-    });
+  function handleSubmit(data: FormValues) {
+    if (activeTab === 'stake') {
+      handleStake(data);
+    } else {
+      handleUnstake(data);
+    }
   }
-  
-  const daysRemaining = unlockDate ? differenceInDays(unlockDate, new Date()) : lockupPeriod;
-  const isReadyToUnstake = daysRemaining <= 0;
+
+  const daysRemaining = unlockDate ? differenceInDays(unlockDate, new Date()) : 0;
+  const isReadyToUnstake = stakedBalance > 0 && daysRemaining <= 0;
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="flex min-h-screen w-full flex-col font-code">
       <Header />
       <main className="flex-1 p-4 md:p-8">
-        <div className="mx-auto w-full max-w-6xl space-y-8">
-          <Card className="bg-card/80">
-            <CardContent className="p-4 flex items-center justify-between">
-              <h1 className="text-2xl font-semibold text-white">Nsme</h1>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Reward</p>
-                <p className="font-semibold text-white">0.00000 USDC/day</p>
-              </div>
-            </CardContent>
-            <CardContent className="px-4 pb-4">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>{stakedBalance.toFixed(2)} / { (stakedBalance * 2).toFixed(2)} Staked</span>
-              </div>
-              <Progress value={50} className="h-2" />
-            </CardContent>
-          </Card>
-
+        <div className="mx-auto w-full max-w-4xl space-y-8">
+          
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="bg-card/80">
+            <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
               <CardHeader>
-                <CardTitle className="text-white">Stake</CardTitle>
+                <CardTitle className="text-primary font-mono tracking-widest">STAKE_TERMINAL</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <Button
-                    onClick={() => setLockupPeriod(7)}
-                    variant={lockupPeriod === 7 ? 'default' : 'secondary'}
-                  >
-                    7 days
-                  </Button>
-                  <Button
-                    onClick={() => setLockupPeriod(30)}
-                    variant={lockupPeriod === 30 ? 'default' : 'secondary'}
-                  >
-                    30 days
-                  </Button>
+                <div className="flex border-b border-primary/20 mb-4">
+                  <button onClick={() => setActiveTab('stake')} className={`px-4 py-2 text-sm ${activeTab === 'stake' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>STAKE</button>
+                  <button onClick={() => setActiveTab('unstake')} className={`px-4 py-2 text-sm ${activeTab === 'unstake' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>UNSTAKE</button>
                 </div>
-                <Form {...stakeForm}>
+                
+                <Form {...form}>
                   <form
-                    onSubmit={stakeForm.handleSubmit(handleStake)}
+                    onSubmit={form.handleSubmit(handleSubmit)}
                     className="space-y-4"
                   >
                     <FormField
-                      control={stakeForm.control}
+                      control={form.control}
                       name="amount"
                       render={({ field }) => (
                         <FormItem>
-                          <div className="bg-input rounded-md p-3">
+                          <div className="bg-black/30 rounded-md p-3">
                             <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                <span>You stake</span>
-                                <span>Balance: {userTrackerBalance.toFixed(6)} USDC</span>
+                                <span>{activeTab === 'stake' ? 'Your balance' : 'Staked balance'}</span>
+                                <span>{activeTab === 'stake' ? userTrackerBalance.toFixed(4) : stakedBalance.toFixed(4)} $TRACKER</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                                 <Input
                                     type="number"
-                                    placeholder="0"
-                                    className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                                    placeholder="0.0"
+                                    className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-primary"
                                     {...field}
                                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                 />
                                 <div className='flex items-center gap-2 text-primary'>
-                                    <UsdcIconSm/>
-                                    <span className='font-bold'>USDC</span>
+                                    <TrackerIcon/>
+                                    <span className='font-bold text-lg'>$TRACKER</span>
                                 </div>
                             </div>
-                            <div className='flex justify-end gap-1 mt-1'>
-                                <Button size="sm" variant="secondary" type="button" onClick={() => stakeForm.setValue('amount', userTrackerBalance)} className="h-6 px-2 text-xs">Max</Button>
-                                <Button size="sm" variant="secondary" type="button" onClick={() => stakeForm.setValue('amount', userTrackerBalance/2)} className="h-6 px-2 text-xs">Half</Button>
-                            </div>
                           </div>
-                          <FormMessage />
+                          <FormMessage className="text-red-500"/>
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" size="lg" className="w-full text-lg" disabled={isStaking}>
-                      {isStaking ? 'Staking...' : 'Stake'}
+                     <Button type="submit" size="lg" className="w-full text-lg font-bold" disabled={isStaking || isUnstaking}>
+                      {isStaking && 'STAKING...'}
+                      {isUnstaking && 'UNSTAKING...'}
+                      {!isStaking && !isUnstaking && (activeTab === 'stake' ? 'STAKE' : 'UNSTAKE')}
                     </Button>
                   </form>
                 </Form>
               </CardContent>
             </Card>
 
-            <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="text-white">Claim / Unstake</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex justify-between items-center bg-input p-4 rounded-md">
-                    <div>
-                        <p className="text-sm text-muted-foreground">Your Claimable Tokens</p>
-                        <p className="text-2xl font-bold text-white">0.00000 USDC</p>
+            <div className="space-y-8">
+              <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
+                <CardHeader>
+                   <CardTitle className="text-primary font-mono tracking-widest">STAKING_INFO</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Staked Balance</span>
+                        <span className="text-primary font-bold">{stakedBalance.toFixed(4)} $TRACKER</span>
                     </div>
-                    <Button variant="secondary" onClick={handleClaimRewards}>Claim</Button>
-                </div>
-                <div className="space-y-4">
-                    <Form {...unstakeForm}>
-                        <form onSubmit={unstakeForm.handleSubmit(handleUnstake)} className="space-y-4">
-                            <FormField
-                                control={unstakeForm.control}
-                                name="amount"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <div className="bg-input rounded-md p-3">
-                                        <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                            <span>Unstake</span>
-                                            {stakedBalance > 0 && unlockDate && (
-                                                <span className={`${isReadyToUnstake ? 'text-primary' : ''}`}>
-                                                    {daysRemaining > 0 ? `${daysRemaining} days` : 'Unlocked'} ({format(unlockDate, 'dd/MM/yyyy HH:mm')})
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Input
-                                                type="number"
-                                                placeholder="0"
-                                                className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                {...field}
-                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                            />
-                                            <div className='flex items-center gap-2 text-primary'>
-                                                <UsdcIconSm/>
-                                                <span className='font-bold'>USDC</span>
-                                            </div>
-                                        </div>
-                                         <div className='flex justify-end gap-1 mt-1'>
-                                            <Button size="sm" variant="secondary" type="button" onClick={() => unstakeForm.setValue('amount', stakedBalance)} className="h-6 px-2 text-xs">Max</Button>
-                                            <Button size="sm" variant="secondary" type="button" onClick={() => unstakeForm.setValue('amount', stakedBalance/2)} className="h-6 px-2 text-xs">Half</Button>
-                                        </div>
-                                    </div>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <Button type="submit" size="lg" variant="secondary" className="w-full text-lg" disabled={isUnstaking || stakedBalance === 0 || !isReadyToUnstake}>
-                                {isUnstaking ? 'Unstaking...' : 'Unstake'}
-                            </Button>
-                        </form>
-                    </Form>
-                </div>
-              </CardContent>
-            </Card>
+                    <Separator className="bg-primary/20"/>
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Lockup Period</span>
+                        <span className="text-primary font-bold">{lockupPeriod} Days</span>
+                    </div>
+                    <Separator className="bg-primary/20"/>
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Unlock Date</span>
+                        <span className={`font-bold ${isReadyToUnstake ? 'text-green-400' : 'text-primary'}`}>
+                          {stakedBalance > 0 && unlockDate ? (isReadyToUnstake ? 'Ready to Unstake' : format(unlockDate, 'dd MMM yyyy')) : 'N/A'}
+                        </span>
+                    </div>
+                </CardContent>
+              </Card>
+
+               <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
+                <CardHeader>
+                   <CardTitle className="text-primary font-mono tracking-widest">REWARDS</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Claimable Rewards</span>
+                        <span className="text-primary font-bold">0.0000 $TRACKER</span>
+                    </div>
+                    <Button variant="outline" className="w-full" onClick={() => toast({ title: 'Coming Soon!', description: 'Reward claiming will be available soon.'})}>
+                      CLAIM REWARDS
+                    </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          <Card className="bg-card/80">
+          <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader>
-              <CardTitle className="text-white">Your Activity</CardTitle>
+              <CardTitle className="text-primary font-mono tracking-widest">ACTIVITY_LOG</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow className='border-b-white/20'>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Lock time - Date</TableHead>
-                    <TableHead>Transaction</TableHead>
+                  <TableRow className='border-b-primary/20'>
+                    <TableHead className="text-primary">Action</TableHead>
+                    <TableHead className="text-primary">Amount</TableHead>
+                    <TableHead className="text-primary">Date</TableHead>
+                    <TableHead className="text-primary">Transaction</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <TableRow className="border-none">
                     <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No Activity yet!
+                      ::NO_RECENT_ACTIVITY::
                     </TableCell>
                   </TableRow>
                 </TableBody>
