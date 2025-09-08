@@ -4,58 +4,26 @@
 
 @layer base {
   :root {
-    --background: 220 20% 5%;
-    --foreground: 100 100% 95%;
-    --card: 220 20% 10%;
-    --card-foreground: 100 100% 95%;
-    --popover: 220 20% 5%;
-    --popover-foreground: 100 100% 95%;
-    --primary: 130 100% 40%;
-    --primary-foreground: 220 20% 5%;
-    --secondary: 220 20% 15%;
-    --secondary-foreground: 100 100% 95%;
-    --muted: 220 20% 15%;
-    --muted-foreground: 220 20% 60%;
-    --accent: 130 100% 40%;
-    --accent-foreground: 220 20% 5%;
-    --destructive: 0 84.2% 60.2%;
+    --background: 0 0% 8%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 120 100% 50%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 20%;
-    --input: 220 20% 15%;
-    --ring: 130 100% 50%;
-    --chart-1: 130 100% 40%;
-    --chart-2: 130 100% 54%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 220 20% 5%;
-    --foreground: 100 100% 95%;
-    --card: 220 20% 10%;
-    --card-foreground: 100 100% 95%;
-    --popover: 220 20% 5%;
-    --popover-foreground: 100 100% 95%;
-    --primary: 130 100% 40%;
-    --primary-foreground: 220 20% 5%;
-    --secondary: 220 20% 15%;
-    --secondary-foreground: 100 100% 95%;
-    --muted: 220 20% 15%;
-    --muted-foreground: 220 20% 60%;
-    --accent: 130 100% 40%;
-    --accent-foreground: 220 20% 5%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 20%;
-    --input: 220 20% 15%;
-    --ring: 130 100% 50%;
-    --chart-1: 130 100% 40%;
-    --chart-2: 130 100% 54%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 120 100% 50%;
+    --radius: 0.8rem;
   }
 }
 
@@ -65,9 +33,5 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      linear-gradient(hsl(var(--primary) / 0.1) 1px, transparent 1px),
-      linear-gradient(to right, hsl(var(--primary) / 0.1) 1px, hsl(var(--background)) 1px);
-    background-size: 2rem 2rem;
   }
 }
