@@ -200,25 +200,25 @@ export default function StakingPage() {
           </Card>
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="font-headline text-accent">
+              <CardTitle className="font-headline text-primary">
                 Pool Details
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
-                <Box className="w-5 h-5 text-accent" />
+                <Box className="w-5 h-5 text-primary" />
                 <span>Total Staked: <strong>1,234,567 $TRACKER</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-accent" />
+                <Users className="w-5 h-5 text-primary" />
                 <span>Total Stakers: <strong>4,321</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Lock className="w-5 h-5 text-accent" />
+                <Lock className="w-5 h-5 text-primary" />
                 <span>Lockup: <strong>{LOCKUP_PERIOD_DAYS} days</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Gift className="w-5 h-5 text-accent" />
+                <Gift className="w-5 h-5 text-primary" />
                 <span>Rewards/Day: <strong>~0.1%</strong></span>
               </div>
             </CardContent>
@@ -327,7 +327,7 @@ export default function StakingPage() {
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center gap-4 text-center">
               <p className="text-muted-foreground">Pending Rewards</p>
-              <p className="text-4xl font-bold font-code text-accent">
+              <p className="text-4xl font-bold font-code text-primary">
                 {pendingRewards.toFixed(4)}
               </p>
             </CardContent>
