@@ -3,20 +3,10 @@
 import React, { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { add, format } from 'date-fns';
-
-import { ensureUnstakingValidity } from '@/ai/flows/ensure-unstaking-validity';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from '@/components/ui/form';
 import {
   Table,
   TableBody,
@@ -25,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
+import {toast} from "sonner"
 import { Header } from '@/components/layout/Header';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -35,24 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { formatDate } from '@/helpers/formatDate';
 
-const formSchema = z.object({
-  amount: z
-    .number({ invalid_type_error: 'Please enter a valid number.' })
-    .positive({ message: 'Amount must be positive.' })
-    .min(0.000001, { message: 'Amount is too small.' }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
-const unstakeFormSchema = z.object({
-  unstakeAmount: z
-    .number({ invalid_type_error: 'Please enter a valid number.' })
-    .positive({ message: 'Amount must be positive.' })
-    .min(0.000001, { message: 'Amount is too small.' }),
-});
-
-type UnstakeFormValues = z.infer<typeof unstakeFormSchema>;
 
 const TrackerIcon = () => (
   <svg
@@ -106,119 +80,26 @@ const activities = [
 export default function StakingPage() {
   const [userTrackerBalance, setUserTrackerBalance] = useState(100000);
   const [stakedBalance, setStakedBalance] = useState(24960000);
+  const [tokenBalace, setTokenBalance] = useState(2)
   const totalStaked = 999720000;
   const [stakeDate, setStakeDate] = useState<Date | null>(new Date());
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isStaking, setIsStaking] = useState(false);
-  const { toast } = useToast();
+  const [isClaiming, setIsClaiming] = useState(false)
+  const [stakeAmount, setStakeAmount] = useState(0)
+
   const [lockupPeriod, setLockupPeriod] = useState(7);
+  const [unstakeAmount, setUnstakeAmount] = useState(0);
   const [unstakeLockupPeriod, setUnstakeLockupPeriod] = useState('7');
+  const src =
+    "https://ipfs.io/ipfs/QmNZyZtUf61FQkNB1L39zENFDHQcsC9mE8JssQssQcscP7";
 
-  const stakeForm = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      amount: 0,
-    },
-  });
+    const handleStake = async()=>{}
+    const handleUnstake = async()=>{}
+    const handleClaim = async()=>{}
+    const claimable = 200000
+    const canClaim = claimable>0
 
-  const unstakeForm = useForm<UnstakeFormValues>({
-    resolver: zodResolver(unstakeFormSchema),
-    defaultValues: {
-      unstakeAmount: 0,
-    },
-  });
-
-  const unlockDate = stakeDate
-    ? add(stakeDate, { days: parseInt(unstakeLockupPeriod, 10) })
-    : null;
-
-  function handleStake(data: FormValues) {
-    if (data.amount > userTrackerBalance) {
-      toast({
-        variant: 'destructive',
-        title: 'Insufficient Balance',
-        description: 'You do not have enough $SUPA to stake this amount.',
-      });
-      return;
-    }
-    setIsStaking(true);
-    setTimeout(() => {
-      setUserTrackerBalance(prev => prev - data.amount);
-      setStakedBalance(prev => prev + data.amount);
-      setStakeDate(new Date());
-      toast({
-        title: 'Stake Successful',
-        description: `You have successfully staked ${data.amount} $SUPA.`,
-      });
-      stakeForm.reset({ amount: 0 });
-      setIsStaking(false);
-    }, 1000);
-  }
-
-  async function handleUnstake(data: UnstakeFormValues) {
-    const amountToUnstake = data.unstakeAmount;
-    setIsUnstaking(true);
-    if (!stakeDate) {
-      toast({
-        variant: 'destructive',
-        title: 'Unstake Error',
-        description: 'No stake date found.',
-      });
-      setIsUnstaking(false);
-      return;
-    }
-    if (amountToUnstake > stakedBalance) {
-      toast({
-        variant: 'destructive',
-        title: 'Unstake Error',
-        description: 'Amount exceeds staked balance.',
-      });
-      setIsUnstaking(false);
-      return;
-    }
-
-    try {
-      const result = await ensureUnstakingValidity({
-        unstakeRequestDate: stakeDate.toISOString(),
-        lockupPeriodDays: parseInt(unstakeLockupPeriod, 10),
-        currentDate: new Date().toISOString(),
-        stakedBalance: amountToUnstake,
-      });
-
-      if (result.isValid) {
-        setUserTrackerBalance(prev => prev + result.unlockedBalance);
-        setStakedBalance(prev => prev - result.unlockedBalance);
-        if (stakedBalance - result.unlockedBalance < 0.000001) {
-          setStakeDate(null);
-        }
-        toast({
-          title: 'Unstake Successful',
-          description: `You have successfully unstaked ${result.unlockedBalance} $SUPA.`,
-        });
-        unstakeForm.reset({ unstakeAmount: 0 });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Unstake Failed',
-          description: result.reason || 'Lockup period has not expired.',
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Unstake Error',
-        description: 'An unexpected error occurred during unstaking.',
-      });
-    } finally {
-      setIsUnstaking(false);
-    }
-  }
-
-  const formatNumber = (num: number) => {
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`;
-    return num.toString();
-  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-top bg-contain">
@@ -230,25 +111,23 @@ export default function StakingPage() {
               <h2 className="text-xl font-semibold">Supa Staking</h2>
               <div className="flex-1 w-full md:w-auto flex flex-col items-center">
                 <div className="text-sm">
-                    {formatNumber(stakedBalance)}/{formatNumber(totalStaked)}{' '}
-                    STAKED
+                  {/* {formatNumber(stakedBalance)}/{formatNumber(totalStaked)}{" "} */}
+                  STAKED
                 </div>
                 <Progress
-                    value={(stakedBalance / totalStaked) * 100}
-                    className="h-2 bg-primary/20 w-1/2"
+                  value={(stakedBalance / totalStaked) * 100}
+                  className="h-2 bg-primary/20 w-1/2"
                 />
               </div>
-               <div className="text-right">
-                  <p className="text-sm text-muted-foreground">REWARD</p>
-                  <p className="font-semibold whitespace-nowrap">
-                    0 SUPA/day
-                  </p>
-                </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">REWARD</p>
+                <p className="font-semibold whitespace-nowrap">0 SUPA/day</p>
+              </div>
             </CardContent>
           </Card>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="bg-card/80 backdrop-blur-sm">
+            {/* <Card className="bg-card/80 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Stake</h3>
@@ -277,7 +156,7 @@ export default function StakingPage() {
 
                 <Form {...stakeForm}>
                   <form
-                    onSubmit={stakeForm.handleSubmit(handleStake)}
+                    // onSubmit={stakeForm.handleSubmit(handleStake)}
                     className="space-y-4"
                   >
                     <div className="border border-primary rounded-lg p-3 bg-background/50">
@@ -365,18 +244,105 @@ export default function StakingPage() {
                   </form>
                 </Form>
               </CardContent>
+            </Card> */}
+            <Card className="bg-gray-900/80 border border-gray-700">
+              <CardHeader>
+                <CardTitle>Stake</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    // variant="secondary"
+                    variant="outline"
+                    // onClick={() => setLockupDuration(7)}
+                    className={`${
+                      lockupPeriod === 7 ? "bg-primary/90" : ""
+                    } hover:bg-primary/90 text-primary-foreground border-none text-white flex-1`}
+                  >
+                    7 days
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setLockupPeriod(30)}
+                    className={`${
+                      lockupPeriod === 30 ? "bg-primary" : ""
+                    } border-none hover:bg-gray-800 flex-1`}
+                  >
+                    30 days
+                  </Button>
+                </div>
+                <div className="border border-gray-700 rounded-md p-3 bg-gray-800/50">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">You stake</span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                        onClick={() => setStakeAmount(tokenBalace)}
+                      >
+                        Max
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                        onClick={() => setStakeAmount(tokenBalace / 2)}
+                      >
+                        Half
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-end mt-1">
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      min="0"
+                      className="bg-transparent border-none outline-none text-2xl font-bold p-0 h-auto focus-visible:ring-0"
+                      value={stakeAmount}
+                      onChange={(e) => {
+                        setStakeAmount(Number(e.target.value));
+                      }}
+                    />
+                    <div className="flex items-center gap-1 justify-center bg-primary text-primary-foreground px-3 py-1 rounded-md">
+                      <Image
+                        src={src}
+                        width={24}
+                        height={24}
+                        alt="token"
+                        className="rounded-full"
+                        data-ai-hint="token icon"
+                      />
+                      {/* <span className="font-bold">{pool.tokenSymbol || 2}</span> */}
+                      <span className="font-bold">USDC</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {/* Balance: {tokenBalace} {pool.tokenSymbol} */}
+                    Balance: 2 $TRACKER
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  onClick={handleStake}
+                  disabled={isStaking}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg"
+                >
+                  {isStaking ? "Staking..." : "Stake"}
+                </Button>
+              </CardContent>
             </Card>
 
-            <Card className="bg-card/80 backdrop-blur-sm">
+            {/* <Card className="bg-card/80 backdrop-blur-sm">
               <CardContent className="p-4">
-                 <h3 className="text-lg font-semibold mb-4">Claim</h3>
+                <h3 className="text-lg font-semibold mb-4">Claim</h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Your Locked Tokens
                     </p>
                     <p className="text-xl font-semibold">
-                      {stakedBalance > 0 ? stakedBalance.toLocaleString() : 0}{' '}
+                      {stakedBalance > 0 ? stakedBalance.toLocaleString() : 0}{" "}
                       SUPA
                     </p>
                   </div>
@@ -393,16 +359,16 @@ export default function StakingPage() {
 
                 <Form {...unstakeForm}>
                   <form
-                    onSubmit={unstakeForm.handleSubmit(handleUnstake)}
+                    // onSubmit={unstakeForm.handleSubmit(handleUnstake)}
                     className="space-y-4"
                   >
-                     <div className="border border-destructive rounded-lg p-3 bg-background/50">
+                    <div className="border border-destructive rounded-lg p-3 bg-background/50">
                       <FormField
                         control={unstakeForm.control}
                         name="unstakeAmount"
                         render={({ field }) => (
                           <FormItem>
-                             <div className="flex justify-between items-center text-xs mb-1">
+                            <div className="flex justify-between items-center text-xs mb-1">
                               <label className="font-medium">Unstake</label>
                               <div className="flex items-center gap-2">
                                 <Select
@@ -420,7 +386,7 @@ export default function StakingPage() {
                                 </Select>
                                 {unlockDate && stakedBalance > 0 && (
                                   <span className="text-muted-foreground text-xs">
-                                    ({format(unlockDate, 'dd/MM/yyyy HH:mm')})
+                                    ({format(unlockDate, "dd/MM/yyyy HH:mm")})
                                   </span>
                                 )}
                               </div>
@@ -432,7 +398,7 @@ export default function StakingPage() {
                                   placeholder="0"
                                   className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
                                   {...field}
-                                  onChange={e =>
+                                  onChange={(e) =>
                                     field.onChange(
                                       parseFloat(e.target.value) || 0
                                     )
@@ -440,35 +406,35 @@ export default function StakingPage() {
                                 />
                               </FormControl>
                               <div className="flex items-center gap-2">
-                                <div className='flex flex-col gap-1'>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-md h-6 text-xs px-2"
-                                  onClick={() =>
-                                    unstakeForm.setValue(
-                                      'unstakeAmount',
-                                      stakedBalance
-                                    )
-                                  }
-                                >
-                                  Max
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-md h-6 text-xs px-2"
-                                  onClick={() =>
-                                    unstakeForm.setValue(
-                                      'unstakeAmount',
-                                      stakedBalance / 2
-                                    )
-                                  }
-                                >
-                                  Half
-                                </Button>
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-md h-6 text-xs px-2"
+                                    onClick={() =>
+                                      unstakeForm.setValue(
+                                        "unstakeAmount",
+                                        stakedBalance
+                                      )
+                                    }
+                                  >
+                                    Max
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-md h-6 text-xs px-2"
+                                    onClick={() =>
+                                      unstakeForm.setValue(
+                                        "unstakeAmount",
+                                        stakedBalance / 2
+                                      )
+                                    }
+                                  >
+                                    Half
+                                  </Button>
                                 </div>
                                 <Button
                                   size="sm"
@@ -480,7 +446,7 @@ export default function StakingPage() {
                                 </Button>
                               </div>
                             </div>
-                             <FormMessage className="text-xs"/>
+                            <FormMessage className="text-xs" />
                           </FormItem>
                         )}
                       />
@@ -492,10 +458,116 @@ export default function StakingPage() {
                       className="w-full text-lg font-bold"
                       disabled={isUnstaking || stakedBalance <= 0}
                     >
-                      {isUnstaking ? 'Unstaking...' : 'Unstake'}
+                      {isUnstaking ? "Unstaking..." : "Unstake"}
                     </Button>
                   </form>
                 </Form>
+              </CardContent>
+            </Card> */}
+            {/* Claim/Unstake Box */}
+            <Card className="bg-gray-900/80 border border-gray-700">
+              <CardHeader>
+                <CardTitle>Claim / Unstake</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-gray-400">Your Locked Tokens</div>
+                    <div className="text-2xl font-bold">
+                      {/* {(userDetails?.amount.toString() ?? 0) /
+                        10 ** poolDetails?.decimals}{" "}
+                      {pool.tokenSymbol} */}
+
+                      10000 $TRACKER
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Your Claimable Tokens</div>
+                    <div className="text-2xl font-bold">
+                      {claimable.toFixed(5)} $TRACKER
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full bg-gray-400 hover:bg-gray-600"
+                  disabled={!canClaim}
+                  onClick={handleClaim}
+                >
+                  {isClaiming ? "Claiming..." : "Claim"}
+                </Button>
+
+                <div className="border border-destructive/50 rounded-md p-3 bg-gray-800/50">
+                  <div className="flex justify-between items-center text-sm">
+                    <span>Unstake</span>
+                    <span className="text-gray-400">
+                      {/* {no_of_days} days (
+                      {formatDate(new Date(startTimeSec * 1000))} →{" "}
+                      {formatDate(endDate)}) */}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end mt-1">
+                    <Input
+                      value={unstakeAmount}
+                      type="text"
+                      placeholder="0"
+                      className="bg-transparent border-none text-2xl font-bold p-0 h-auto focus-visible:ring-0"
+                      defaultValue="0"
+                    />
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                          onClick={() =>
+                            setUnstakeAmount(
+                              // userDetails?.amount.toNumber() /
+                              //   10 ** poolDetails?.decimals
+                              2
+                            )
+                          }
+                        >
+                          Max
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                          onClick={() =>
+                            setUnstakeAmount(
+                              // userDetails?.amount.toNumber() /
+                              //   10 ** poolDetails?.decimals /
+                              //   2
+                              2
+                            )
+                          }
+                        >
+                          Half
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-center gap-1 bg-destructive text-destructive-foreground px-4 py-1 rounded-md">
+                        <Image
+                          src={src}
+                          width={20}
+                          height={20}
+                          alt="token"
+                          className="rounded-full"
+                          data-ai-hint="token icon"
+                        />
+                        <span className="font-bold">$TRACKER</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full bg-gray-400 hover:bg-gray-600"
+                  disabled={unstakeAmount <= 0}
+                  onClick={handleUnstake}
+                >
+                  {isUnstaking ? "Unstaking..." : "Unstake"}
+                </Button>
               </CardContent>
             </Card>
           </div>
