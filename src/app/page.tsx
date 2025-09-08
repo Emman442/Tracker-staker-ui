@@ -228,30 +228,28 @@ export default function StakingPage() {
           <Card className="bg-card/80 backdrop-blur-sm">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">Supa Staking</h2>
-              <div className="flex-1 w-full md:w-auto">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>
+              <div className="flex-1 w-full md:w-auto flex flex-col items-center">
+                <div className="text-sm">
                     {formatNumber(stakedBalance)}/{formatNumber(totalStaked)}{' '}
                     STAKED
-                  </span>
-                  <span>REWARD</span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <Progress
+                <Progress
                     value={(stakedBalance / totalStaked) * 100}
-                    className="h-2 bg-primary/20"
-                  />
-                  <span className="font-semibold whitespace-nowrap">
-                    0 SUPA/day
-                  </span>
-                </div>
+                    className="h-2 bg-primary/20 w-1/2"
+                />
               </div>
+               <div className="text-right">
+                  <p className="text-sm text-muted-foreground">REWARD</p>
+                  <p className="font-semibold whitespace-nowrap">
+                    0 SUPA/day
+                  </p>
+                </div>
             </CardContent>
           </Card>
 
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Stake</h3>
                   <div className="flex items-center gap-2">
@@ -282,22 +280,22 @@ export default function StakingPage() {
                     onSubmit={stakeForm.handleSubmit(handleStake)}
                     className="space-y-4"
                   >
-                    <div className="border border-primary rounded-lg p-4 bg-background/50">
+                    <div className="border border-primary rounded-lg p-3 bg-background/50">
                       <FormField
                         control={stakeForm.control}
                         name="amount"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex justify-between items-end">
+                            <div className="flex justify-between items-center">
                               <div>
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-xs text-muted-foreground">
                                   You stake
                                 </span>
                                 <FormControl>
                                   <Input
                                     type="number"
                                     placeholder="0"
-                                    className="bg-transparent border-none text-4xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                                    className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                                     {...field}
                                     onChange={e =>
                                       field.onChange(
@@ -306,13 +304,18 @@ export default function StakingPage() {
                                     }
                                   />
                                 </FormControl>
+                                <span className="text-xs text-muted-foreground">
+                                  Balance: {userTrackerBalance.toLocaleString()}{' '}
+                                  SUPA
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
+                                <div className='flex flex-col gap-1'>
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="rounded-full h-7 text-xs"
+                                  className="rounded-md h-6 text-xs px-2"
                                   onClick={() =>
                                     stakeForm.setValue(
                                       'amount',
@@ -326,7 +329,7 @@ export default function StakingPage() {
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="rounded-full h-7 text-xs"
+                                  className="rounded-md h-6 text-xs px-2"
                                   onClick={() =>
                                     stakeForm.setValue(
                                       'amount',
@@ -336,6 +339,7 @@ export default function StakingPage() {
                                 >
                                   Half
                                 </Button>
+                                </div>
                                 <Button
                                   size="sm"
                                   className="bg-primary text-primary-foreground pointer-events-none rounded-md"
@@ -345,11 +349,7 @@ export default function StakingPage() {
                                 </Button>
                               </div>
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              Balance: {userTrackerBalance.toLocaleString()}{' '}
-                              SUPA
-                            </span>
-                             <FormMessage />
+                             <FormMessage className="text-xs"/>
                           </FormItem>
                         )}
                       />
@@ -368,14 +368,14 @@ export default function StakingPage() {
             </Card>
 
             <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Claim</h3>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+              <CardContent className="p-4">
+                 <h3 className="text-lg font-semibold mb-4">Claim</h3>
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Your Locked Tokens
                     </p>
-                    <p className="text-2xl font-semibold">
+                    <p className="text-xl font-semibold">
                       {stakedBalance > 0 ? stakedBalance.toLocaleString() : 0}{' '}
                       SUPA
                     </p>
@@ -384,10 +384,10 @@ export default function StakingPage() {
                     <p className="text-sm text-muted-foreground">
                       Your Claimable Tokens
                     </p>
-                    <p className="text-2xl font-semibold">0 SUPA</p>
+                    <p className="text-xl font-semibold">0 SUPA</p>
                   </div>
                 </div>
-                <Button className="w-full mb-6" variant="secondary" disabled>
+                <Button className="w-full mb-4" variant="secondary" disabled>
                   Claim
                 </Button>
 
@@ -396,42 +396,41 @@ export default function StakingPage() {
                     onSubmit={unstakeForm.handleSubmit(handleUnstake)}
                     className="space-y-4"
                   >
-                    <div className="flex justify-between items-center text-sm">
-                      <label className="font-medium">Unstake</label>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={unstakeLockupPeriod}
-                          onValueChange={setUnstakeLockupPeriod}
-                          disabled={stakedBalance <= 0}
-                        >
-                          <SelectTrigger className="w-[100px] h-7 text-xs">
-                            <SelectValue placeholder="Days" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="7">7 days</SelectItem>
-                            <SelectItem value="30">30 days</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        {unlockDate && stakedBalance > 0 && (
-                          <span className="text-muted-foreground text-xs">
-                            ({format(unlockDate, 'dd/MM/yyyy HH:mm')})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="border border-destructive rounded-lg p-4 bg-background/50">
+                     <div className="border border-destructive rounded-lg p-3 bg-background/50">
                       <FormField
                         control={unstakeForm.control}
                         name="unstakeAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="flex justify-between items-end">
+                             <div className="flex justify-between items-center text-xs mb-1">
+                              <label className="font-medium">Unstake</label>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={unstakeLockupPeriod}
+                                  onValueChange={setUnstakeLockupPeriod}
+                                  disabled={stakedBalance <= 0}
+                                >
+                                  <SelectTrigger className="w-[80px] h-6 text-xs">
+                                    <SelectValue placeholder="Days" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="7">7 days</SelectItem>
+                                    <SelectItem value="30">30 days</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {unlockDate && stakedBalance > 0 && (
+                                  <span className="text-muted-foreground text-xs">
+                                    ({format(unlockDate, 'dd/MM/yyyy HH:mm')})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
                               <FormControl>
                                 <Input
                                   type="number"
                                   placeholder="0"
-                                  className="bg-transparent border-none text-4xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
+                                  className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
                                   {...field}
                                   onChange={e =>
                                     field.onChange(
@@ -441,11 +440,12 @@ export default function StakingPage() {
                                 />
                               </FormControl>
                               <div className="flex items-center gap-2">
+                                <div className='flex flex-col gap-1'>
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="rounded-full h-7 text-xs"
+                                  className="rounded-md h-6 text-xs px-2"
                                   onClick={() =>
                                     unstakeForm.setValue(
                                       'unstakeAmount',
@@ -459,7 +459,7 @@ export default function StakingPage() {
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  className="rounded-full h-7 text-xs"
+                                  className="rounded-md h-6 text-xs px-2"
                                   onClick={() =>
                                     unstakeForm.setValue(
                                       'unstakeAmount',
@@ -469,6 +469,7 @@ export default function StakingPage() {
                                 >
                                   Half
                                 </Button>
+                                </div>
                                 <Button
                                   size="sm"
                                   variant="destructive"
@@ -479,7 +480,7 @@ export default function StakingPage() {
                                 </Button>
                               </div>
                             </div>
-                             <FormMessage />
+                             <FormMessage className="text-xs"/>
                           </FormItem>
                         )}
                       />
@@ -500,7 +501,7 @@ export default function StakingPage() {
           </div>
 
           <Card className="bg-card/80 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <h3 className="text-lg font-semibold mb-4">Your activity</h3>
               <Table>
                 <TableHeader>
