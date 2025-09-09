@@ -630,7 +630,7 @@ export default function StakingPage() {
                 <div className="border border-destructive/50 rounded-md p-3 bg-gray-800/50">
                   <div className="flex justify-between items-center text-sm">
                     <span>Unstake</span>
-                    <span className="text-gray-400">
+                    <span className="text-gray-400 text-[12px]">
                       {no_of_days} days (
                       {formatDate(new Date(startTimeSec * 1000))} →{" "}
                       {formatDate(endDate)})

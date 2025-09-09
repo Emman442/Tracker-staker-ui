@@ -11,6 +11,7 @@ const WalletMultiButton = dynamic(
   { ssr: false }
 );
 import {FaXTwitter} from "react-icons/fa6"
+import Image from 'next/image';
 
 const SupaLogo = () => (
     <svg width="100" height="40" viewBox="0 0 125 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -40,14 +41,14 @@ export function Header() {
         href="/"
         className="flex items-center gap-2 text-lg font-semibold md:text-base"
       >
-        <SupaLogo />
+        <Image src="/seekerstake.jpeg" alt='seeker staker logo' width={35} height={35} className='rounded-full'/>
       </Link>
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
         <Link
           href="#"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          Supa Labs
+          Seeker Staker
         </Link>
         <Link
           href="#"
@@ -55,12 +56,7 @@ export function Header() {
         >
           Airdrop
         </Link>
-        <Link
-          href="#"
-          className="text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Scan
-        </Link>
+       
       </nav>
       <div className="flex-1" />
       <div className="flex items-center gap-4">
