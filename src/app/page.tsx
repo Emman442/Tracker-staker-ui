@@ -1,12 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -14,92 +12,461 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import {toast} from "sonner"
-import { Header } from '@/components/layout/Header';
-import { Progress } from '@/components/ui/progress';
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import { Header } from "@/components/layout/Header";
+import { Progress } from "@/components/ui/progress";
+import { formatDate } from "@/helpers/formatDate";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { formatDate } from '@/helpers/formatDate';
-
-
-const TrackerIcon = () => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M12 2L2 7L12 12L22 7L12 2Z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M2 17L12 22L22 17"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M2 12L12 17L22 12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const activities = [
-  {
-    action: 'Stake',
-    amount: '10,000 SUPA',
-    lockTime: '7 days',
-    date: '2024-08-01 10:30',
-    transaction: '0x123...abc',
-  },
-  {
-    action: 'Unstake',
-    amount: '5,000 SUPA',
-    lockTime: 'N/A',
-    date: '2024-08-08 11:00',
-    transaction: '0x456...def',
-  },
-];
+  clusterApiUrl,
+  Connection,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
+import { useAnchorWallet, useWallet } from "@solana/wallet-adapter-react";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
+import { useFetchActivity } from "@/hooks/useFetchActivity";
+import { useProgram } from "@/hooks/use-program";
+import { decimals, TRACKER_MINT } from "@/constants/constants";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import {
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { getTokenBalance } from "@/helpers/getTokenBalance";
+import { ExternalLink } from "lucide-react";
+import { truncateHash } from "@/helpers/truncateHash";
+import Link from "next/link";
+import { usePostData } from "@/hooks/usePostData";
+import { formatNumber } from "@/helpers/formatNumber";
 
 export default function StakingPage() {
-  const [userTrackerBalance, setUserTrackerBalance] = useState(100000);
+  const { publicKey } = useWallet();
+  const wallet = useAnchorWallet();
+  const { program } = useProgram();
+  const { mutate } = usePostData();
   const [stakedBalance, setStakedBalance] = useState(24960000);
-  const [tokenBalace, setTokenBalance] = useState(2)
+  const [tokenBalace, setTokenBalance] = useState<number>(0);
+  const [globalState, setGlobalState] = useState<any>(null);
+  const [stakingPoolDetails, setStakingPooLDetails] = useState<any>(null);
   const totalStaked = 999720000;
   const [stakeDate, setStakeDate] = useState<Date | null>(new Date());
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isStaking, setIsStaking] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false)
-  const [stakeAmount, setStakeAmount] = useState(0)
-
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState(0);
+  const [userDetails, setUserDetails] = useState<any>();
   const [lockupPeriod, setLockupPeriod] = useState(7);
   const [unstakeAmount, setUnstakeAmount] = useState(0);
-  const [unstakeLockupPeriod, setUnstakeLockupPeriod] = useState('7');
-  const src =
-    "https://ipfs.io/ipfs/QmNZyZtUf61FQkNB1L39zENFDHQcsC9mE8JssQssQcscP7";
+  const [unstakeLockupPeriod, setUnstakeLockupPeriod] = useState("7");
+  const src = "/seekerstake.jpeg";
+  const connection = new Connection(clusterApiUrl("devnet"), {
+    commitment: "confirmed",
+  });
+  const provider = new AnchorProvider(connection, wallet!, {
+    preflightCommitment: "processed",
+  });
+  console.log("global state: ", globalState);
 
-    const handleStake = async()=>{}
-    const handleUnstake = async()=>{}
-    const handleClaim = async()=>{}
-    const claimable = 200000
-    const canClaim = claimable>0
+  const { data, isLoading, error } = useFetchActivity(publicKey, "TRACKER");
+  const [globalStatePda, globalStatePdaBump] = useMemo(() => {
+    if (!program) return [null, null];
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("global_state")],
+      program.programId
+    );
+  }, [program]);
+  const [stakingPoolPda, stakingPoolbump] = useMemo(() => {
+    if (!program || !globalState?.admin) return [null, null];
+    return PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("staking_pool"),
+        globalState.admin.toBuffer(),
+        new PublicKey(TRACKER_MINT).toBuffer(),
+      ],
+      program.programId
+    );
+  }, [program?.programId, globalState]);
+  const [stakeVaultPda, stakeVaultPdaBump] = useMemo(() => {
+    if (!program || !stakingPoolPda) return [null, null];
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("stake_vault"), stakingPoolPda.toBuffer()],
+      program.programId
+    );
+  }, [program, stakingPoolPda]);
+  const [rewardVaultPda, rewardVaultPdaBump] = useMemo(() => {
+    if (!program || !stakingPoolPda) return [null, null];
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("reward_vault"), stakingPoolPda.toBuffer()],
+      program.programId
+    );
+  }, [program, stakingPoolPda]);
+  useEffect(() => {
+    const fetchTokenBal = async () => {
+      if (!publicKey) return;
 
+      try {
+        const balance = await getTokenBalance(
+          new PublicKey(publicKey),
+          new PublicKey(TRACKER_MINT)
+        );
+        setTokenBalance(balance);
+      } catch (err) {
+        console.error("Error fetching token balance:", err);
+      }
+    };
+
+    fetchTokenBal();
+  }, [publicKey]);
+
+  useEffect(() => {
+    const fetchStakingPoolDetails = async () => {
+      if (!publicKey || !stakingPoolPda) return;
+
+      try {
+        const details = await program?.account.stakingPool.fetch(
+          stakingPoolPda!
+        );
+        console.log("details: ", details);
+        setStakingPooLDetails(details);
+      } catch (err) {
+        console.error("Error fetching token balance:", err);
+      }
+    };
+
+    fetchStakingPoolDetails();
+  }, [publicKey, stakingPoolPda]);
+
+  const [userStakePda, userStakePdaBump] = useMemo(() => {
+    if (!program || !publicKey || !stakingPoolPda) return [null, null];
+    return PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("user_stake"),
+        publicKey.toBuffer(),
+        stakingPoolPda.toBuffer(),
+      ],
+      program.programId
+    );
+  }, [program, publicKey, stakingPoolPda]);
+
+  useEffect(() => {
+    const fetchGlobalState = async () => {
+      if (!program || !globalStatePda) return;
+
+      try {
+        // Fetch the account data from the blockchain
+        const poolAccount = await program.account.globalState.fetch(
+          globalStatePda
+        );
+        setGlobalState(poolAccount);
+      } catch (error) {
+        console.error("Error fetching pool account:", error);
+      }
+    };
+
+    fetchGlobalState();
+  }, [program, globalStatePda]);
+
+  useEffect(() => {
+    const fetchUserStakeDetails = async () => {
+      if (!userStakePda || !program) return;
+      try {
+        const details = await program.account.userStake.fetch(userStakePda);
+        setUserDetails(details);
+      } catch (err) {
+        // If account doesn't exist, fallback to default values
+        setUserDetails({
+          amount: new BN(0),
+          pendingRewards: new BN(0),
+          lastUpdateTime: new BN(Math.floor(Date.now() / 1000)),
+          lockupDuration: new BN(0),
+          startTime: new BN(0),
+        });
+      }
+    };
+
+    fetchUserStakeDetails();
+  }, [userStakePda, program]);
+
+  if (!publicKey) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-400">
+        <div className="flex flex-col gap-2 items-center">
+          Please connect your wallet to continue
+          <WalletMultiButton />
+        </div>
+      </div>
+    );
+  }
+
+  const handleStake = async () => {
+    setIsStaking(true);
+    const stakeAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer!,
+      new PublicKey(TRACKER_MINT),
+      provider.wallet.publicKey
+    );
+    if (!program || !publicKey) return;
+    try {
+      const lockupDuration = new BN(lockupPeriod * 24 * 60 * 60);
+      const tx = await program.methods
+        .stake(new BN(stakeAmount * 10 ** decimals), lockupDuration)
+        .accounts({
+          user: provider.wallet.publicKey,
+          stakingPool: stakingPoolPda!,
+          //@ts-ignore
+          userStake: userStakePda,
+          userStakeAccount: stakeAccount.address,
+          stakeVault: stakeVaultPda,
+
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const txDetails = await connection.getTransaction(tx, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!txDetails) {
+        throw new Error("Transaction not found or not confirmed");
+      }
+
+      const logs = txDetails?.meta?.logMessages;
+      const eventLog = logs?.find((l) => l.startsWith("Program data:"));
+
+      if (eventLog) {
+        const encoded = eventLog.replace("Program data: ", "");
+        const decoded = program.coder.events.decode(encoded);
+
+        if (decoded?.name === "tokensStaked") {
+          setIsStaking(false);
+          const newActivity = {
+            user: publicKey.toString(),
+            action: "stake",
+            amount: stakeAmount,
+            lock_time: no_of_days.toString(),
+            timestamp: startTimeSec,
+            transaction: tx,
+            tokenSymbol: "TRACKER",
+          };
+
+          mutate(newActivity);
+          toast.success("You've successfully staked your tokens!", {
+            cancel: {
+              label: "View Transaction",
+              onClick: () =>
+                window.open(
+                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  "_blank"
+                ),
+            },
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      setIsStaking(false);
+      toast.error("Something went wrong, please try staking again");
+    }
+  };
+  const handleUnstake = async () => {
+    setIsUnstaking(true);
+    const stakeAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer!,
+      new PublicKey(TRACKER_MINT),
+      provider.wallet.publicKey
+    );
+    if (!program || !publicKey) return;
+    try {
+      const tx = await program.methods
+        .unstake(new BN(unstakeAmount * 10 ** decimals))
+        .accounts({
+          // @ts-ignore
+          userStake: userStakePda,
+          user: provider.wallet.publicKey,
+          stakingPool: stakingPoolPda!,
+          userStakeAccount: stakeAccount.address,
+          stakeVault: stakeVaultPda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const txDetails = await connection.getTransaction(tx, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!txDetails) {
+        throw new Error("Transaction not found or not confirmed");
+      }
+
+      const logs = txDetails?.meta?.logMessages;
+      const eventLog = logs?.find((l) => l.startsWith("Program data:"));
+
+      if (eventLog) {
+        const encoded = eventLog.replace("Program data: ", "");
+        const decoded = program.coder.events.decode(encoded);
+
+        if (decoded?.name === "tokensUnstaked") {
+          setIsUnstaking(false);
+          const newActivity = {
+            user: publicKey.toString(),
+            action: "unstake",
+            amount: unstakeAmount,
+            // lockTime: null,
+            timestamp: Math.floor(Date.now() / 1000),
+            transaction: tx,
+            tokenSymbol: "TRACKER",
+          };
+
+          mutate(newActivity);
+          toast.success("You've successfully unstaked your tokens!", {
+            cancel: {
+              label: "View Transaction",
+              onClick: () =>
+                window.open(
+                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  "_blank"
+                ),
+            },
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      setIsUnstaking(false);
+      toast.error("Something went wrong, please try unstaking again");
+    }
+  };
+  const handleClaim = async () => {
+    setIsClaiming(true);
+    const stakeAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer!,
+      new PublicKey(TRACKER_MINT),
+      provider.wallet.publicKey
+    );
+
+    const platformFeeVault = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer!,
+      new PublicKey(TRACKER_MINT),
+      new PublicKey(process.env.NEXT_PUBLIC_PLATFORM_FEE_VAULT!),
+      true
+    );
+    if (!program || !publicKey) return;
+    try {
+      const tx = await program.methods
+        .claimRewards()
+        .accounts({
+          user: provider.wallet.publicKey,
+          stakingPool: stakingPoolPda!,
+          userRewardAccount: stakeAccount.address,
+          //@ts-ignore
+          userStake: userStakePda,
+          userStakeAccount: stakeAccount.address,
+          stakeVault: stakeVaultPda,
+          platformFeeVault: platformFeeVault.address,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardVault: rewardVaultPda,
+        })
+        .rpc();
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const txDetails = await connection.getTransaction(tx, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!txDetails) {
+        throw new Error("Transaction not found or not confirmed");
+      }
+
+      const logs = txDetails?.meta?.logMessages;
+      const eventLog = logs?.find((l) => l.startsWith("Program data:"));
+
+      if (eventLog) {
+        const encoded = eventLog.replace("Program data: ", "");
+        const decoded = program.coder.events.decode(encoded);
+
+        if (decoded?.name === "rewardsClaimed") {
+          setIsClaiming(false);
+          const newActivity = {
+            action: "claim",
+            user: publicKey.toString(),
+            amount: claimable,
+            // lockTime: null,
+            timestamp: Math.floor(Date.now() / 1000),
+            transaction: tx,
+            tokenSymbol: "TRACKER",
+          };
+          mutate(newActivity);
+          toast.success("You've successfully claimed your rewards!", {
+            cancel: {
+              label: "View Transaction",
+              onClick: () =>
+                window.open(
+                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  "_blank"
+                ),
+            },
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      setIsClaiming(false);
+      toast.error("Something went wrong, please try claiming again");
+    }
+  };
+  function calculateClaimable() {
+    if (!userDetails || !stakingPoolDetails) return;
+    const now = Math.floor(Date.now() / 1000); // seconds
+    const timeElapsed = now - userDetails.lastUpdateTime.toNumber();
+    const newRewards =
+      timeElapsed *
+      (userDetails?.amount.toNumber() / 10 ** decimals) *
+      (stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000);
+
+    console.log(timeElapsed);
+
+    return userDetails?.pendingRewards.toNumber() + newRewards;
+  }
+
+  const lockupDurationSeconds = userDetails?.lockupDuration.toNumber();
+  const no_of_days = lockupDurationSeconds / (24 * 60 * 60);
+  const startTimeSec = userDetails?.startTime.toNumber();
+  const endTimeSec = startTimeSec + lockupDurationSeconds;
+  const endDate = new Date(endTimeSec * 1000);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const canUnstake = unstakeAmount > 0 && nowSec >= endTimeSec;
+
+  function calculateDailyReward(tokensStaked: number) {
+    if (!stakingPoolDetails) return 0;
+    const secondsInDay = 86400;
+    return (
+      ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
+        tokensStaked *
+        secondsInDay) /
+      10 ** decimals
+    );
+  }
+  const claimable = calculateClaimable() / 10 ** decimals;
+  const canClaim = claimable > 0;
+
+  console.log("staking P D", stakingPoolDetails);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-top bg-contain">
@@ -108,143 +475,43 @@ export default function StakingPage() {
         <div className="mx-auto w-full max-w-6xl space-y-6">
           <Card className="bg-card/80 backdrop-blur-sm">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold">Supa Staking</h2>
+              <h2 className="text-xl font-semibold">TRACKER Staking</h2>
               <div className="flex-1 w-full md:w-auto flex flex-col items-center">
                 <div className="text-sm">
-                  {/* {formatNumber(stakedBalance)}/{formatNumber(totalStaked)}{" "} */}
+                  {formatNumber(
+                    (stakingPoolDetails?.totalStaked ?? 0) /
+                      10 ** (decimals ?? 0)
+                  )}{" "}
+                  /{" "}
+                  {formatNumber(
+                    (stakingPoolDetails?.maxPoolSize ?? 1_000_000_000_000) /
+                      10 ** decimals
+                  )}{" "}
                   STAKED
                 </div>
                 <Progress
-                  value={(stakedBalance / totalStaked) * 100}
+                  value={
+                    ((stakingPoolDetails?.totalStaked ?? 0) /
+                      (stakingPoolDetails?.maxPoolSize ?? 1_000_000_000)) *
+                    100
+                  }
                   className="h-2 bg-primary/20 w-1/2"
                 />
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">REWARD</p>
-                <p className="font-semibold whitespace-nowrap">0 SUPA/day</p>
+                <p className="font-semibold whitespace-nowrap">
+                  {" "}
+                  {calculateDailyReward(
+                    userDetails?.amount.toNumber() / 10 ** decimals
+                  ).toFixed(5) || 0}{" "}
+                  TRACKER/day
+                </p>
               </div>
             </CardContent>
           </Card>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {/* <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Stake</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      LOCK TIME
-                    </span>
-                    <Button
-                      variant={lockupPeriod === 7 ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setLockupPeriod(7)}
-                      className="rounded-lg"
-                    >
-                      7 days
-                    </Button>
-                    <Button
-                      variant={lockupPeriod === 30 ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setLockupPeriod(30)}
-                      className="rounded-lg"
-                    >
-                      30 days
-                    </Button>
-                  </div>
-                </div>
-
-                <Form {...stakeForm}>
-                  <form
-                    // onSubmit={stakeForm.handleSubmit(handleStake)}
-                    className="space-y-4"
-                  >
-                    <div className="border border-primary rounded-lg p-3 bg-background/50">
-                      <FormField
-                        control={stakeForm.control}
-                        name="amount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <span className="text-xs text-muted-foreground">
-                                  You stake
-                                </span>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    placeholder="0"
-                                    className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                                    {...field}
-                                    onChange={e =>
-                                      field.onChange(
-                                        parseFloat(e.target.value) || 0
-                                      )
-                                    }
-                                  />
-                                </FormControl>
-                                <span className="text-xs text-muted-foreground">
-                                  Balance: {userTrackerBalance.toLocaleString()}{' '}
-                                  SUPA
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className='flex flex-col gap-1'>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-md h-6 text-xs px-2"
-                                  onClick={() =>
-                                    stakeForm.setValue(
-                                      'amount',
-                                      userTrackerBalance
-                                    )
-                                  }
-                                >
-                                  Max
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-md h-6 text-xs px-2"
-                                  onClick={() =>
-                                    stakeForm.setValue(
-                                      'amount',
-                                      userTrackerBalance / 2
-                                    )
-                                  }
-                                >
-                                  Half
-                                </Button>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  className="bg-primary text-primary-foreground pointer-events-none rounded-md"
-                                >
-                                  <TrackerIcon />
-                                  SUPA
-                                </Button>
-                              </div>
-                            </div>
-                             <FormMessage className="text-xs"/>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full text-lg font-bold"
-                      disabled={isStaking}
-                    >
-                      {isStaking ? 'Staking...' : 'Stake'}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card> */}
             <Card className="bg-gray-900/80 border border-gray-700">
               <CardHeader>
                 <CardTitle>Stake</CardTitle>
@@ -254,7 +521,7 @@ export default function StakingPage() {
                   <Button
                     // variant="secondary"
                     variant="outline"
-                    // onClick={() => setLockupDuration(7)}
+                    onClick={() => setLockupPeriod(7)}
                     className={`${
                       lockupPeriod === 7 ? "bg-primary/90" : ""
                     } hover:bg-primary/90 text-primary-foreground border-none text-white flex-1`}
@@ -313,13 +580,11 @@ export default function StakingPage() {
                         className="rounded-full"
                         data-ai-hint="token icon"
                       />
-                      {/* <span className="font-bold">{pool.tokenSymbol || 2}</span> */}
-                      <span className="font-bold">USDC</span>
+                      <span className="font-bold">TRACKER</span>
                     </div>
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
-                    {/* Balance: {tokenBalace} {pool.tokenSymbol} */}
-                    Balance: 2 $TRACKER
+                    Balance: {tokenBalace} TRACKER
                   </div>
                 </div>
                 <Button
@@ -332,138 +597,6 @@ export default function StakingPage() {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <h3 className="text-lg font-semibold mb-4">Claim</h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Your Locked Tokens
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {stakedBalance > 0 ? stakedBalance.toLocaleString() : 0}{" "}
-                      SUPA
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Your Claimable Tokens
-                    </p>
-                    <p className="text-xl font-semibold">0 SUPA</p>
-                  </div>
-                </div>
-                <Button className="w-full mb-4" variant="secondary" disabled>
-                  Claim
-                </Button>
-
-                <Form {...unstakeForm}>
-                  <form
-                    // onSubmit={unstakeForm.handleSubmit(handleUnstake)}
-                    className="space-y-4"
-                  >
-                    <div className="border border-destructive rounded-lg p-3 bg-background/50">
-                      <FormField
-                        control={unstakeForm.control}
-                        name="unstakeAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center text-xs mb-1">
-                              <label className="font-medium">Unstake</label>
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={unstakeLockupPeriod}
-                                  onValueChange={setUnstakeLockupPeriod}
-                                  disabled={stakedBalance <= 0}
-                                >
-                                  <SelectTrigger className="w-[80px] h-6 text-xs">
-                                    <SelectValue placeholder="Days" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="7">7 days</SelectItem>
-                                    <SelectItem value="30">30 days</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {unlockDate && stakedBalance > 0 && (
-                                  <span className="text-muted-foreground text-xs">
-                                    ({format(unlockDate, "dd/MM/yyyy HH:mm")})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder="0"
-                                  className="bg-transparent border-none text-2xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
-                                  {...field}
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                />
-                              </FormControl>
-                              <div className="flex items-center gap-2">
-                                <div className="flex flex-col gap-1">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="rounded-md h-6 text-xs px-2"
-                                    onClick={() =>
-                                      unstakeForm.setValue(
-                                        "unstakeAmount",
-                                        stakedBalance
-                                      )
-                                    }
-                                  >
-                                    Max
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="rounded-md h-6 text-xs px-2"
-                                    onClick={() =>
-                                      unstakeForm.setValue(
-                                        "unstakeAmount",
-                                        stakedBalance / 2
-                                      )
-                                    }
-                                  >
-                                    Half
-                                  </Button>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="pointer-events-none rounded-md"
-                                >
-                                  <TrackerIcon />
-                                  SUPA
-                                </Button>
-                              </div>
-                            </div>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      variant="secondary"
-                      size="lg"
-                      className="w-full text-lg font-bold"
-                      disabled={isUnstaking || stakedBalance <= 0}
-                    >
-                      {isUnstaking ? "Unstaking..." : "Unstake"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card> */}
             {/* Claim/Unstake Box */}
             <Card className="bg-gray-900/80 border border-gray-700">
               <CardHeader>
@@ -474,17 +607,14 @@ export default function StakingPage() {
                   <div>
                     <div className="text-gray-400">Your Locked Tokens</div>
                     <div className="text-2xl font-bold">
-                      {/* {(userDetails?.amount.toString() ?? 0) /
-                        10 ** poolDetails?.decimals}{" "}
-                      {pool.tokenSymbol} */}
-
-                      10000 $TRACKER
+                      {(userDetails?.amount.toString() ?? 0) / 10 ** decimals}{" "}
+                      TRACKER
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-400">Your Claimable Tokens</div>
                     <div className="text-2xl font-bold">
-                      {claimable.toFixed(5)} $TRACKER
+                      {claimable.toFixed(1)} TRACKER
                     </div>
                   </div>
                 </div>
@@ -501,9 +631,9 @@ export default function StakingPage() {
                   <div className="flex justify-between items-center text-sm">
                     <span>Unstake</span>
                     <span className="text-gray-400">
-                      {/* {no_of_days} days (
+                      {no_of_days} days (
                       {formatDate(new Date(startTimeSec * 1000))} →{" "}
-                      {formatDate(endDate)}) */}
+                      {formatDate(endDate)})
                     </span>
                   </div>
                   <div className="flex justify-between items-end mt-1">
@@ -522,9 +652,7 @@ export default function StakingPage() {
                           className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
                           onClick={() =>
                             setUnstakeAmount(
-                              // userDetails?.amount.toNumber() /
-                              //   10 ** poolDetails?.decimals
-                              2
+                              userDetails?.amount.toNumber() / 10 ** decimals
                             )
                           }
                         >
@@ -536,10 +664,9 @@ export default function StakingPage() {
                           className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
                           onClick={() =>
                             setUnstakeAmount(
-                              // userDetails?.amount.toNumber() /
-                              //   10 ** poolDetails?.decimals /
-                              //   2
-                              2
+                              userDetails?.amount.toNumber() /
+                                10 ** decimals /
+                                2
                             )
                           }
                         >
@@ -549,13 +676,13 @@ export default function StakingPage() {
                       <div className="flex items-center justify-center gap-1 bg-destructive text-destructive-foreground px-4 py-1 rounded-md">
                         <Image
                           src={src}
-                          width={20}
-                          height={20}
+                          width={24}
+                          height={24}
                           alt="token"
-                          className="rounded-full"
+                          className="rounded-full object-fit"
                           data-ai-hint="token icon"
                         />
-                        <span className="font-bold">$TRACKER</span>
+                        <span className="font-bold">TRACKER</span>
                       </div>
                     </div>
                   </div>
@@ -563,7 +690,7 @@ export default function StakingPage() {
                 <Button
                   size="lg"
                   className="w-full bg-gray-400 hover:bg-gray-600"
-                  disabled={unstakeAmount <= 0}
+                  disabled={!canUnstake || isUnstaking}
                   onClick={handleUnstake}
                 >
                   {isUnstaking ? "Unstaking..." : "Unstake"}
@@ -572,35 +699,81 @@ export default function StakingPage() {
             </Card>
           </div>
 
-          <Card className="bg-card/80 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-semibold mb-4">Your activity</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Lock time - Date</TableHead>
-                    <TableHead>Transaction</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activities.map((activity, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{activity.action}</TableCell>
-                      <TableCell>{activity.amount}</TableCell>
-                      <TableCell>
-                        {activity.lockTime} - {activity.date}
-                      </TableCell>
-                      <TableCell className="text-primary">
-                        {activity.transaction}
-                      </TableCell>
+          <div className="mt-8">
+            <Card className="bg-gray-900/80 border border-gray-700">
+              <CardHeader>
+                <CardTitle>Your Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-700 hover:bg-gray-800/50">
+                      <TableHead className="text-gray-400">Action</TableHead>
+                      <TableHead className="text-gray-400">Amount</TableHead>
+                      <TableHead className="text-gray-400">
+                        Lock time - Date
+                      </TableHead>
+                      <TableHead className="text-gray-400">
+                        Transaction
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {!data || data.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-gray-500 py-8"
+                        >
+                          No Activity yet!
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.map((activity, idx) => (
+                        <TableRow
+                          key={idx}
+                          className="border-gray-800 hover:bg-gray-800/30"
+                        >
+                          <TableCell>{activity.action}</TableCell>
+                          <TableCell>{activity.amount.toFixed(5)}</TableCell>
+                          <TableCell className="pl-2">
+                            {activity.action === "stake" ? (
+                              <>
+                                {`${activity.lock_time} days - ${formatDate(
+                                  new Date(activity.timestamp * 1000)
+                                )}`}
+                              </>
+                            ) : (
+                              formatDate(
+                                new Date(activity.timestamp * 1000)
+                              ) ?? <span className="pl-14">-</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <a
+                              href={`https://explorer.solana.com/tx/${activity.transaction}?cluster=devnet`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:underline"
+                            >
+                              <Link
+                                href={`https://solscan.io/tx/${activity.transaction}?cluster=devnet`}
+                                className="flex items-center gap-1 hover:text-primary transition-colors"
+                              >
+                                {truncateHash(activity.transaction)}
+                                <ExternalLink className="h-4 w-4" />
+                              </Link>
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>

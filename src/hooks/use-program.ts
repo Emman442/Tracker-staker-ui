@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { SmithiiClone, SmithiiCloneIDL } from "../../anchor/src";
+import { SeekerProgram, SeekerProgramIDL } from "../../anchor/src";
 
 export const useProgram = () => {
     const wallet = useAnchorWallet();
@@ -14,7 +14,7 @@ export const useProgram = () => {
             commitment: "confirmed",
         });
 
-        const program = new Program<SmithiiClone>(SmithiiCloneIDL, provider);
+        const program = new Program<SeekerProgram>(SeekerProgramIDL, provider);
 
         return { program, provider };
     }, [connection, wallet]);
