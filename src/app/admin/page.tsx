@@ -183,6 +183,7 @@ export default function AdminPage() {
      try {
        const account = await program.account.stakingPool.fetch(stakingPoolPda);
 
+       console.log("rateeee: ",Number(account.rewardRatePerTokenPerSecond))
        // Fetch reward vault token balance
        const rewardVaultInfo = await connection.getTokenAccountBalance(
          account.rewardVault
@@ -220,7 +221,7 @@ export default function AdminPage() {
        </div>
      );
    }
-   console.log(rewardRate)
+
    const calculateExampleReward = () => {
      if (!rewardRate) return "0";
      if (Number(rewardRate) <= 0) return "0";
@@ -464,7 +465,7 @@ export default function AdminPage() {
          .withdrawRewardsFromPool(new anchor.BN(rewardRate || 0))
          .accounts({
            //@ts-ignore
-           admin: provider.wallet.payer.publicKey,
+           admin: provider.wallet.publicKey,
            stakingPool: stakingPoolPda,
            creatorRewardAccount: stakeAccount.address,
            //@ts-ignore
@@ -723,7 +724,6 @@ export default function AdminPage() {
   );
 }
 
-/* Extracted stat card for DRYness */
 function StatCard({
   title,
   value,

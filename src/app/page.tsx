@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,18 +39,16 @@ import { truncateHash } from "@/helpers/truncateHash";
 import Link from "next/link";
 import { usePostData } from "@/hooks/usePostData";
 import { formatNumber } from "@/helpers/formatNumber";
+import { BalanceLoader } from "@/components/ui/balance-loader";
 
 export default function StakingPage() {
   const { publicKey } = useWallet();
   const wallet = useAnchorWallet();
   const { program } = useProgram();
   const { mutate } = usePostData();
-  const [stakedBalance, setStakedBalance] = useState(24960000);
-  const [tokenBalace, setTokenBalance] = useState<number>(0);
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [globalState, setGlobalState] = useState<any>(null);
   const [stakingPoolDetails, setStakingPooLDetails] = useState<any>(null);
-  const totalStaked = 999720000;
-  const [stakeDate, setStakeDate] = useState<Date | null>(new Date());
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isStaking, setIsStaking] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -58,17 +56,25 @@ export default function StakingPage() {
   const [userDetails, setUserDetails] = useState<any>();
   const [lockupPeriod, setLockupPeriod] = useState(7);
   const [unstakeAmount, setUnstakeAmount] = useState(0);
-  const [unstakeLockupPeriod, setUnstakeLockupPeriod] = useState("7");
+  const [isLoading, setIsLoading] = useState(true);
   const src = "/seekerstake.jpeg";
+
   const connection = new Connection(clusterApiUrl("devnet"), {
     commitment: "confirmed",
   });
-  const provider = new AnchorProvider(connection, wallet!, {
-    preflightCommitment: "processed",
-  });
-  console.log("global state: ", globalState);
+  const provider = wallet
+    ? new AnchorProvider(connection, wallet, {
+        preflightCommitment: "processed",
+      })
+    : null;
 
-  const { data, isLoading, error } = useFetchActivity(publicKey, "TRACKER");
+  const {
+    data,
+    isLoading: activityLoading,
+    error,
+  } = useFetchActivity(publicKey, "TRACKER");
+
+  // Memoized PDAs
   const [globalStatePda, globalStatePdaBump] = useMemo(() => {
     if (!program) return [null, null];
     return PublicKey.findProgramAddressSync(
@@ -76,6 +82,7 @@ export default function StakingPage() {
       program.programId
     );
   }, [program]);
+
   const [stakingPoolPda, stakingPoolbump] = useMemo(() => {
     if (!program || !globalState?.admin) return [null, null];
     return PublicKey.findProgramAddressSync(
@@ -87,6 +94,7 @@ export default function StakingPage() {
       program.programId
     );
   }, [program?.programId, globalState]);
+
   const [stakeVaultPda, stakeVaultPdaBump] = useMemo(() => {
     if (!program || !stakingPoolPda) return [null, null];
     return PublicKey.findProgramAddressSync(
@@ -94,6 +102,7 @@ export default function StakingPage() {
       program.programId
     );
   }, [program, stakingPoolPda]);
+
   const [rewardVaultPda, rewardVaultPdaBump] = useMemo(() => {
     if (!program || !stakingPoolPda) return [null, null];
     return PublicKey.findProgramAddressSync(
@@ -101,41 +110,6 @@ export default function StakingPage() {
       program.programId
     );
   }, [program, stakingPoolPda]);
-  useEffect(() => {
-    const fetchTokenBal = async () => {
-      if (!publicKey) return;
-
-      try {
-        const balance = await getTokenBalance(
-          new PublicKey(publicKey),
-          new PublicKey(TRACKER_MINT)
-        );
-        setTokenBalance(balance);
-      } catch (err) {
-        console.error("Error fetching token balance:", err);
-      }
-    };
-
-    fetchTokenBal();
-  }, [publicKey]);
-
-  useEffect(() => {
-    const fetchStakingPoolDetails = async () => {
-      if (!publicKey || !stakingPoolPda) return;
-
-      try {
-        const details = await program?.account.stakingPool.fetch(
-          stakingPoolPda!
-        );
-        console.log("details: ", details);
-        setStakingPooLDetails(details);
-      } catch (err) {
-        console.error("Error fetching token balance:", err);
-      }
-    };
-
-    fetchStakingPoolDetails();
-  }, [publicKey, stakingPoolPda]);
 
   const [userStakePda, userStakePdaBump] = useMemo(() => {
     if (!program || !publicKey || !stakingPoolPda) return [null, null];
@@ -149,44 +123,142 @@ export default function StakingPage() {
     );
   }, [program, publicKey, stakingPoolPda]);
 
-  useEffect(() => {
-    const fetchGlobalState = async () => {
-      if (!program || !globalStatePda) return;
 
+const refetchTokenBalance = useCallback(
+  async (retries = 3) => {
+    if (!publicKey) return;
+
+    for (let i = 0; i < retries; i++) {
       try {
-        // Fetch the account data from the blockchain
-        const poolAccount = await program.account.globalState.fetch(
-          globalStatePda
+        const ata = await getOrCreateAssociatedTokenAccount(
+          connection,
+          provider?.wallet.payer!,
+          new PublicKey(TRACKER_MINT),
+          publicKey
         );
-        setGlobalState(poolAccount);
-      } catch (error) {
-        console.error("Error fetching pool account:", error);
-      }
-    };
 
-    fetchGlobalState();
+        const balance = await connection.getTokenAccountBalance(ata.address);
+        setTokenBalance(Number(balance.value.amount) / 10 ** decimals);
+
+        return;
+      } catch (err) {
+        console.error(`Error fetching token balance (attempt ${i + 1}):`, err);
+        if (i < retries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+  },
+  [publicKey, provider, connection]
+);
+
+  const refetchStakingPoolDetails = useCallback(async () => {
+    if (!program || !stakingPoolPda) return;
+    try {
+      const details = await program.account.stakingPool.fetch(stakingPoolPda);
+      setStakingPooLDetails(details);
+    } catch (err) {
+      console.error("Error fetching staking pool details:", err);
+    }
+  }, [program, stakingPoolPda]);
+
+  const refetchUserStakeDetails = useCallback(async () => {
+    if (!userStakePda || !program) return;
+    try {
+      const details = await program.account.userStake.fetch(userStakePda);
+      setUserDetails(details);
+    } catch (err) {
+      setUserDetails({
+        amount: new BN(0),
+        pendingRewards: new BN(0),
+        lastUpdateTime: new BN(Math.floor(Date.now() / 1000)),
+        lockupDuration: new BN(0),
+        startTime: new BN(0),
+      });
+    }
+  }, [userStakePda, program]);
+
+  const refetchGlobalState = useCallback(async () => {
+    if (!program || !globalStatePda) return;
+    try {
+      const poolAccount = await program.account.globalState.fetch(
+        globalStatePda
+      );
+      setGlobalState(poolAccount);
+    } catch (error) {
+      console.error("Error fetching global state:", error);
+    }
   }, [program, globalStatePda]);
 
-  useEffect(() => {
-    const fetchUserStakeDetails = async () => {
-      if (!userStakePda || !program) return;
-      try {
-        const details = await program.account.userStake.fetch(userStakePda);
-        setUserDetails(details);
-      } catch (err) {
-        // If account doesn't exist, fallback to default values
-        setUserDetails({
-          amount: new BN(0),
-          pendingRewards: new BN(0),
-          lastUpdateTime: new BN(Math.floor(Date.now() / 1000)),
-          lockupDuration: new BN(0),
-          startTime: new BN(0),
-        });
-      }
-    };
+  // Refetch all data
+  const refetchAllData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        refetchTokenBalance(),
+        refetchGlobalState(),
+        refetchStakingPoolDetails(),
+        refetchUserStakeDetails(),
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    refetchTokenBalance,
+    refetchGlobalState,
+    refetchStakingPoolDetails,
+    refetchUserStakeDetails,
+  ]);
 
-    fetchUserStakeDetails();
-  }, [userStakePda, program]);
+  // Initial data fetch
+  useEffect(() => {
+    if (publicKey && program) {
+      refetchAllData();
+    }
+  }, [publicKey, program]);
+
+  function calculateClaimable() {
+    if (!userDetails || !stakingPoolDetails) return 0;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const timeElapsed = now - userDetails.lastUpdateTime.toNumber();
+      const newRewards =
+        timeElapsed *
+        (userDetails?.amount.toNumber() / 10 ** decimals) *
+        (stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000);
+      return userDetails?.pendingRewards.toNumber() + newRewards || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function calculateDailyReward(tokensStaked: number) {
+    if (!stakingPoolDetails || !tokensStaked) return 0;
+    try {
+      const secondsInDay = 86400;
+      return (
+        ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
+          tokensStaked *
+          secondsInDay) /
+        10 ** decimals
+      );
+    } catch {
+      return 0;
+    }
+  }
+
+  // Calculated values with safe defaults
+  const lockupDurationSeconds = userDetails?.lockupDuration?.toNumber() || 0;
+  const no_of_days = lockupDurationSeconds
+    ? lockupDurationSeconds / (24 * 60 * 60)
+    : 0;
+  const startTimeSec = userDetails?.startTime?.toNumber() || 0;
+  const endTimeSec = startTimeSec + lockupDurationSeconds;
+  const endDate = new Date(endTimeSec * 1000);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const canUnstake = unstakeAmount > 0 && nowSec >= endTimeSec;
+  const claimable = calculateClaimable() / 10 ** decimals;
+  const canClaim = claimable > 0;
 
   if (!publicKey) {
     return (
@@ -200,15 +272,17 @@ export default function StakingPage() {
   }
 
   const handleStake = async () => {
+    if (!provider || !program || !publicKey) return;
+
     setIsStaking(true);
-    const stakeAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      provider.wallet.payer!,
-      new PublicKey(TRACKER_MINT),
-      provider.wallet.publicKey
-    );
-    if (!program || !publicKey) return;
     try {
+      const stakeAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        provider.wallet.payer!,
+        new PublicKey(TRACKER_MINT),
+        provider.wallet.publicKey
+      );
+
       const lockupDuration = new BN(lockupPeriod * 24 * 60 * 60);
       const tx = await program.methods
         .stake(new BN(stakeAmount * 10 ** decimals), lockupDuration)
@@ -219,7 +293,6 @@ export default function StakingPage() {
           userStake: userStakePda,
           userStakeAccount: stakeAccount.address,
           stakeVault: stakeVaultPda,
-
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
@@ -244,7 +317,6 @@ export default function StakingPage() {
         const decoded = program.coder.events.decode(encoded);
 
         if (decoded?.name === "tokensStaked") {
-          setIsStaking(false);
           const newActivity = {
             user: publicKey.toString(),
             action: "stake",
@@ -256,6 +328,7 @@ export default function StakingPage() {
           };
 
           mutate(newActivity);
+          await refetchAllData();
           toast.success("You've successfully staked your tokens!", {
             cancel: {
               label: "View Transaction",
@@ -266,25 +339,28 @@ export default function StakingPage() {
                 ),
             },
           });
-          return;
         }
       }
     } catch (error) {
       console.log(error);
-      setIsStaking(false);
       toast.error("Something went wrong, please try staking again");
+    } finally {
+      setIsStaking(false);
     }
   };
+
   const handleUnstake = async () => {
+    if (!provider || !program || !publicKey) return;
+
     setIsUnstaking(true);
-    const stakeAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      provider.wallet.payer!,
-      new PublicKey(TRACKER_MINT),
-      provider.wallet.publicKey
-    );
-    if (!program || !publicKey) return;
     try {
+      const stakeAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        provider.wallet.payer!,
+        new PublicKey(TRACKER_MINT),
+        provider.wallet.publicKey
+      );
+
       const tx = await program.methods
         .unstake(new BN(unstakeAmount * 10 ** decimals))
         .accounts({
@@ -298,7 +374,7 @@ export default function StakingPage() {
         })
         .rpc();
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
       const txDetails = await connection.getTransaction(tx, {
         commitment: "confirmed",
@@ -317,18 +393,20 @@ export default function StakingPage() {
         const decoded = program.coder.events.decode(encoded);
 
         if (decoded?.name === "tokensUnstaked") {
-          setIsUnstaking(false);
           const newActivity = {
             user: publicKey.toString(),
             action: "unstake",
             amount: unstakeAmount,
-            // lockTime: null,
             timestamp: Math.floor(Date.now() / 1000),
             transaction: tx,
             tokenSymbol: "TRACKER",
           };
 
           mutate(newActivity);
+
+          // Refetch all data after successful unstake
+          await refetchAllData();
+
           toast.success("You've successfully unstaked your tokens!", {
             cancel: {
               label: "View Transaction",
@@ -339,33 +417,36 @@ export default function StakingPage() {
                 ),
             },
           });
-          return;
         }
       }
     } catch (error) {
       console.log(error);
-      setIsUnstaking(false);
       toast.error("Something went wrong, please try unstaking again");
+    } finally {
+      setIsUnstaking(false);
     }
   };
-  const handleClaim = async () => {
-    setIsClaiming(true);
-    const stakeAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      provider.wallet.payer!,
-      new PublicKey(TRACKER_MINT),
-      provider.wallet.publicKey
-    );
 
-    const platformFeeVault = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      provider.wallet.payer!,
-      new PublicKey(TRACKER_MINT),
-      new PublicKey(process.env.NEXT_PUBLIC_PLATFORM_FEE_VAULT!),
-      true
-    );
-    if (!program || !publicKey) return;
+  const handleClaim = async () => {
+    if (!provider || !program || !publicKey) return;
+
+    setIsClaiming(true);
     try {
+      const stakeAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        provider.wallet.payer!,
+        new PublicKey(TRACKER_MINT),
+        provider.wallet.publicKey
+      );
+
+      const platformFeeVault = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        provider.wallet.payer!,
+        new PublicKey(TRACKER_MINT),
+        new PublicKey(process.env.NEXT_PUBLIC_PLATFORM_FEE_VAULT!),
+        true
+      );
+
       const tx = await program.methods
         .claimRewards()
         .accounts({
@@ -401,17 +482,20 @@ export default function StakingPage() {
         const decoded = program.coder.events.decode(encoded);
 
         if (decoded?.name === "rewardsClaimed") {
-          setIsClaiming(false);
           const newActivity = {
             action: "claim",
             user: publicKey.toString(),
             amount: claimable,
-            // lockTime: null,
             timestamp: Math.floor(Date.now() / 1000),
             transaction: tx,
             tokenSymbol: "TRACKER",
           };
+
           mutate(newActivity);
+
+          // Refetch all data after successful claim
+          await refetchAllData();
+
           toast.success("You've successfully claimed your rewards!", {
             cancel: {
               label: "View Transaction",
@@ -422,51 +506,15 @@ export default function StakingPage() {
                 ),
             },
           });
-          return;
         }
       }
     } catch (error) {
       console.log(error);
-      setIsClaiming(false);
       toast.error("Something went wrong, please try claiming again");
+    } finally {
+      setIsClaiming(false);
     }
   };
-  function calculateClaimable() {
-    if (!userDetails || !stakingPoolDetails) return;
-    const now = Math.floor(Date.now() / 1000); // seconds
-    const timeElapsed = now - userDetails.lastUpdateTime.toNumber();
-    const newRewards =
-      timeElapsed *
-      (userDetails?.amount.toNumber() / 10 ** decimals) *
-      (stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000);
-
-    console.log(timeElapsed);
-
-    return userDetails?.pendingRewards.toNumber() + newRewards;
-  }
-
-  const lockupDurationSeconds = userDetails?.lockupDuration.toNumber();
-  const no_of_days = lockupDurationSeconds / (24 * 60 * 60);
-  const startTimeSec = userDetails?.startTime.toNumber();
-  const endTimeSec = startTimeSec + lockupDurationSeconds;
-  const endDate = new Date(endTimeSec * 1000);
-  const nowSec = Math.floor(Date.now() / 1000);
-  const canUnstake = unstakeAmount > 0 && nowSec >= endTimeSec;
-
-  function calculateDailyReward(tokensStaked: number) {
-    if (!stakingPoolDetails) return 0;
-    const secondsInDay = 86400;
-    return (
-      ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
-        tokensStaked *
-        secondsInDay) /
-      10 ** decimals
-    );
-  }
-  const claimable = calculateClaimable() / 10 ** decimals;
-  const canClaim = claimable > 0;
-
-  console.log("staking P D", stakingPoolDetails);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-top bg-contain">
@@ -480,7 +528,7 @@ export default function StakingPage() {
                 <div className="text-sm">
                   {formatNumber(
                     (stakingPoolDetails?.totalStaked ?? 0) /
-                      10 ** (decimals ?? 0)
+                      10 ** (decimals ?? 9)
                   )}{" "}
                   /{" "}
                   {formatNumber(
@@ -499,12 +547,14 @@ export default function StakingPage() {
                 />
               </div>
               <div className="text-right">
-                <p className="text-sm  text-center text-muted-foreground">REWARD</p>
+                <p className="text-sm  text-center text-muted-foreground">
+                  REWARD
+                </p>
                 <p className="font-semibold whitespace-nowrap">
                   {" "}
                   {calculateDailyReward(
-                    userDetails?.amount.toNumber() / 10 ** decimals
-                  ).toFixed(5) || 0}{" "}
+                    (userDetails?.amount?.toNumber() ?? 0) / 10 ** decimals
+                  ).toFixed(5)}{" "}
                   TRACKER/day
                 </p>
               </div>
@@ -545,7 +595,7 @@ export default function StakingPage() {
                         variant="outline"
                         size="sm"
                         className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
-                        onClick={() => setStakeAmount(tokenBalace)}
+                        onClick={() => setStakeAmount(tokenBalance)}
                       >
                         Max
                       </Button>
@@ -553,7 +603,7 @@ export default function StakingPage() {
                         variant="outline"
                         size="sm"
                         className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
-                        onClick={() => setStakeAmount(tokenBalace / 2)}
+                        onClick={() => setStakeAmount(tokenBalance / 2)}
                       >
                         Half
                       </Button>
@@ -582,8 +632,12 @@ export default function StakingPage() {
                       <span className="font-bold">TRACKER</span>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-">
-                    Balance: {tokenBalace} TRACKER
+                  <div className="text-xs text-gray-500 mt-2 flex gap-1.5">
+                    Balance:
+                    <BalanceLoader
+                      isLoading={isLoading}
+                      balance={tokenBalance}
+                    />
                   </div>
                 </div>
                 <Button
@@ -606,21 +660,24 @@ export default function StakingPage() {
                   <div>
                     <div className="text-gray-400">Your Locked Tokens</div>
                     <div className="text-xl font-bold">
-                      {(userDetails?.amount.toString() ?? 0) / 10 ** decimals}{" "}
+                      {(
+                        (userDetails?.amount?.toNumber() ?? 0) /
+                        10 ** decimals
+                      ).toFixed(2)}{" "}
                       TRACKER
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-400">Your Claimable Tokens</div>
                     <div className="text-xl font-bold">
-                      {claimable.toFixed(1)} TRACKER
+                      {claimable.toFixed(5)} TRACKER
                     </div>
                   </div>
                 </div>
                 <Button
                   size="lg"
                   className="w-full bg-gray-300 hover:bg-gray-400"
-                  disabled={!canClaim}
+                  disabled={!canClaim || isClaiming}
                   onClick={handleClaim}
                 >
                   {isClaiming ? "Claiming..." : "Claim"}
@@ -630,18 +687,20 @@ export default function StakingPage() {
                   <div className="flex justify-between items-center text-sm">
                     <span>Unstake</span>
                     <span className="text-gray-400 text-[12px]">
-                      {no_of_days} days (
-                      {formatDate(new Date(startTimeSec * 1000))} →{" "}
-                      {formatDate(endDate)})
+                      {no_of_days.toFixed(0)} days (
+                      {startTimeSec
+                        ? formatDate(new Date(startTimeSec * 1000))
+                        : "N/A"}{" "}
+                      → {endTimeSec ? formatDate(endDate) : "N/A"})
                     </span>
                   </div>
                   <div className="flex justify-between items-end mt-1">
                     <Input
                       value={unstakeAmount}
-                      type="text"
+                      type="number"
                       placeholder="0"
                       className="bg-transparent border-none text-2xl font-bold p-0 h-auto focus-visible:ring-0"
-                      defaultValue="0"
+                      onChange={(e) => setUnstakeAmount(Number(e.target.value))}
                     />
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
@@ -651,7 +710,8 @@ export default function StakingPage() {
                           className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
                           onClick={() =>
                             setUnstakeAmount(
-                              userDetails?.amount.toNumber() / 10 ** decimals
+                              (userDetails?.amount?.toNumber() ?? 0) /
+                                10 ** decimals
                             )
                           }
                         >
@@ -663,7 +723,7 @@ export default function StakingPage() {
                           className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
                           onClick={() =>
                             setUnstakeAmount(
-                              userDetails?.amount.toNumber() /
+                              (userDetails?.amount?.toNumber() ?? 0) /
                                 10 ** decimals /
                                 2
                             )
@@ -697,7 +757,6 @@ export default function StakingPage() {
               </CardContent>
             </Card>
           </div>
-
           <div className="mt-8">
             <Card className="bg-gray-900/80 border border-gray-700">
               <CardHeader>
@@ -745,7 +804,7 @@ export default function StakingPage() {
                             ) : (
                               formatDate(
                                 new Date(activity.timestamp * 1000)
-                              ) ?? <span className="pl-14">-</span>
+                              ) ?? <span className="pl-14">N/A -</span>
                             )}
                           </TableCell>
 
