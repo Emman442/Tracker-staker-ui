@@ -1,4 +1,4 @@
-import { FaCoins } from "react-icons/fa"; // Placeholder for coin
+import { FaCoins } from "react-icons/fa";
 import Image from "next/image";
 import { toast } from "sonner";
 
@@ -13,7 +13,6 @@ export default function SocialIcons() {
   };
   return (
     <div className="flex items-center space-x-1 bg-[#011b14] border border-[#00ff9c33] rounded-lg px-3 py-1.5">
-      {/* Dex Screener */}
       <div
         className="relative group"
         onClick={() =>
@@ -46,7 +45,6 @@ export default function SocialIcons() {
         </span>
       </div>
 
-      {/* Rug Check */}
       <div
         className="relative group"
         onClick={() =>

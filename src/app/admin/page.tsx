@@ -1,82 +1,335 @@
 "use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DollarSign, Users, Zap, Percent } from "lucide-react";
+import { DollarSign, Users, Zap, Percent, Info } from "lucide-react";
 import { formatNumber } from "@/helpers/formatNumber";
 import { useProgram } from "@/hooks/use-program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { decimals, TRACKER_MINT } from "@/constants/constants";
 import * as anchor from "@coral-xyz/anchor";
-import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { clusterApiUrl, Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import {
+  clusterApiUrl,
+  Connection,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
 import { Label } from "recharts";
 
 export default function AdminPage() {
-  const { publicKey } = useWallet();
-  const { program, provider } = useProgram();
-  const connection = new Connection(clusterApiUrl("devnet"), {
-    commitment: "confirmed",
-  });
- const [globalState, setGlobalState] = useState({
-   admin: "",
-   platform_fee_bps: 0,
-   // total_pools_created: 0,
-   platform_fee_vault: "",
- });
-  const [fundAmount, setFundAmount] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isFunding, setIsFunding] = useState(false);
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
-  const [rewardRate, setRewardRate] = useState<number>();
+   const { publicKey } = useWallet();
+   const { program, provider } = useProgram();
+
+   // Memoize connection to prevent re-creation
+   const connection = useMemo(
+     () =>
+       new Connection(clusterApiUrl("devnet"), {
+         commitment: "confirmed",
+       }),
+     []
+   );
+
+   const [globalState, setGlobalState] = useState({
+     admin: "",
+     platform_fee_bps: 0,
+     platform_fee_vault: "",
+   });
+
+   const [stats, setStats] = useState({
+     totalStaked: 0,
+     totalStakers: 0,
+     rewardRate: 0,
+     rewardVaultBalance: 0,
+   });
+
+   const [fundAmount, setFundAmount] = useState(0);
+   const [isCreating, setIsCreating] = useState(false);
+   const [isFunding, setIsFunding] = useState(false);
+   const [isWithdrawing, setIsWithdrawing] = useState(false);
+   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+   const [rewardRate, setRewardRate] = useState<number>();
    const [pdaExists, setPdaExists] = useState<boolean | null>(null);
-    const [isCreatingGlobalState, setIsCreatingGlobalState] = useState(false);
-   const [globalStatePDA, _] = program
-     ? PublicKey.findProgramAddressSync(
+   const [stakes, setStakes] = useState<any>([]);
+   const [isCreatingGlobalState, setIsCreatingGlobalState] = useState(false);
+
+   // Memoize all PDA calculations to prevent infinite re-renders
+   const globalStatePDA = useMemo(() => {
+     if (!program) return null;
+     try {
+       const [pda] = PublicKey.findProgramAddressSync(
          [Buffer.from("global_state")],
          program.programId
-       )
-     : [null, null];
+       );
+       return pda;
+     } catch (error) {
+       console.error("Error calculating globalStatePDA:", error);
+       return null;
+     }
+   }, [program]);
+
+   const stakingPoolPda = useMemo(() => {
+     if (!program || !provider?.wallet?.publicKey) return null;
+     try {
+       const [pda] = PublicKey.findProgramAddressSync(
+         [
+           Buffer.from("staking_pool"),
+           provider.wallet.publicKey.toBuffer(),
+           new PublicKey(TRACKER_MINT).toBuffer(),
+         ],
+         program.programId
+       );
+       return pda;
+     } catch (error) {
+       console.error("Error calculating stakingPoolPda:", error);
+       return null;
+     }
+   }, [program, provider?.wallet?.publicKey]);
+
+   const userStakePda = useMemo(() => {
+     if (!program || !provider?.wallet?.publicKey || !stakingPoolPda)
+       return null;
+     try {
+       const [pda] = PublicKey.findProgramAddressSync(
+         [
+           Buffer.from("user_stake"),
+           provider.wallet.publicKey.toBuffer(),
+           stakingPoolPda.toBuffer(),
+         ],
+         program.programId
+       );
+       return pda;
+     } catch (error) {
+       console.error("Error calculating userStakePda:", error);
+       return null;
+     }
+   }, [program, provider?.wallet?.publicKey, stakingPoolPda]);
+
+   const stakeVaultPda = useMemo(() => {
+     if (!program || !stakingPoolPda) return null;
+     try {
+       const [pda] = PublicKey.findProgramAddressSync(
+         [Buffer.from("stake_vault"), stakingPoolPda.toBuffer()],
+         program.programId
+       );
+       return pda;
+     } catch (error) {
+       console.error("Error calculating stakeVaultPda:", error);
+       return null;
+     }
+   }, [program, stakingPoolPda]);
+
+   const rewardVaultPda = useMemo(() => {
+     if (!program || !stakingPoolPda) return null;
+     try {
+       const [pda] = PublicKey.findProgramAddressSync(
+         [Buffer.from("reward_vault"), stakingPoolPda.toBuffer()],
+         program.programId
+       );
+       return pda;
+     } catch (error) {
+       console.error("Error calculating rewardVaultPda:", error);
+       return null;
+     }
+   }, [program, stakingPoolPda]);
+
+   // Memoize the PDA check function to prevent unnecessary calls
+   const checkPda = useCallback(async () => {
+     if (!program || !globalStatePDA) return;
+
+     try {
+       const account = await program.account.globalState.fetch(globalStatePDA);
+       if (account) {
+         setPdaExists(true);
+         setGlobalState({
+           admin: account.admin.toBase58(),
+           platform_fee_bps: account.platformFeeBps,
+           platform_fee_vault: account.platformFeeVault.toBase58(),
+         });
+       }
+     } catch (err) {
+       console.log("PDA does not exist yet:", err);
+       setPdaExists(false);
+     }
+   }, [program, globalStatePDA]);
+
+   // Memoize the fetch functions to prevent unnecessary calls
+   const fetchTotalStakers = useCallback(async () => {
+     if (!program) return;
+
+     try {
+       const account = await program.account.userStake.all();
+       setStakes(account);
+     } catch (err) {
+       console.error("Error fetching total stakers:", err);
+     }
+   }, [program]);
+
+   const fetchPoolDetails = useCallback(async () => {
+     if (!program || !stakingPoolPda) return;
+
+     try {
+       const account = await program.account.stakingPool.fetch(stakingPoolPda);
+
+       // Fetch reward vault token balance
+       const rewardVaultInfo = await connection.getTokenAccountBalance(
+         account.rewardVault
+       );
+
+       setStats({
+         totalStaked: Number(account.totalStaked) / 10 ** decimals,
+         totalStakers: Number(account.totalStakers),
+         rewardRate: Number(account.rewardRatePerTokenPerSecond),
+         rewardVaultBalance:
+           Number(rewardVaultInfo.value.amount) / 10 ** decimals,
+       });
+     } catch (err) {
+       console.error("Error fetching pool details:", err);
+     }
+   }, [program, stakingPoolPda, connection]);
+
+   // Now use the memoized functions in useEffect
+   useEffect(() => {
+     checkPda();
+   }, [checkPda]);
 
    useEffect(() => {
-     const checkPda = async () => {
-       if (!program || !globalStatePDA) return;
+     fetchTotalStakers();
+   }, [fetchTotalStakers]);
 
-       try {
-         const account = await program.account.globalState.fetch(
-           globalStatePDA
-         );
-         if (account) {
-           setPdaExists(true);
-           setGlobalState({
-             admin: account.admin.toBase58(),
-             platform_fee_bps: account.platformFeeBps,
-             platform_fee_vault: account.platformFeeVault.toBase58(),
-           });
-         }
-       } catch (err) {
-         // PDA does not exist yet
-         setPdaExists(false);
+   useEffect(() => {
+     fetchPoolDetails();
+   }, [fetchPoolDetails]);
+
+   // Add loading state check
+   if (!program || !provider) {
+     return (
+       <div className="flex items-center justify-center h-screen">
+         <p className="text-muted-foreground">Program not loaded yet...</p>
+       </div>
+     );
+   }
+
+   const calculateExampleReward = () => {
+     if (!stats.rewardRate) return "0";
+     if (Number(stats.rewardRate) <= 0) return "0";
+
+     try {
+       const tokensStaked = 100;
+       const secondsIn30Days = 30 * 24 * 60 * 60;
+       const totalReward =
+         (((Number(stats.rewardRate) * tokensStaked) / 10 ** decimals!) *
+           secondsIn30Days) /
+         10 ** 4;
+       return totalReward.toLocaleString(undefined, {
+         maximumFractionDigits: 2,
+       });
+     } catch (error) {
+       console.error("Error calculating example reward:", error);
+       return "0";
+     }
+   };
+
+   const handleFundPool = async () => {
+     if (
+       !program ||
+       !publicKey ||
+       !provider ||
+       !stakingPoolPda ||
+       !rewardVaultPda
+     ) {
+       toast.error("Missing required dependencies");
+       return;
+     }
+
+     if (!fundAmount || fundAmount <= 0) {
+       toast.info("Fund Amount must be greater than 0!");
+       return;
+     }
+
+     try {
+       setIsFunding(true);
+
+       const stakeAccount = await getOrCreateAssociatedTokenAccount(
+         provider.connection,
+         provider.wallet.payer!,
+         new PublicKey(TRACKER_MINT),
+         provider.wallet.publicKey
+       );
+
+       const tx = await program.methods
+         .fundRewardPool(new anchor.BN(fundAmount * 10 ** decimals))
+         .accounts({
+           funder: provider.wallet.publicKey,
+           stakingPool: stakingPoolPda,
+           funderRewardAccount: stakeAccount.address,
+           //@ts-ignore
+           rewardVault: rewardVaultPda,
+           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+         })
+         .rpc();
+
+       await new Promise((resolve) => setTimeout(resolve, 2000));
+
+       const txDetails = await connection.getTransaction(tx, {
+         commitment: "confirmed",
+         maxSupportedTransactionVersion: 0,
+       });
+
+       if (!txDetails) {
+         throw new Error("Transaction not found or not confirmed");
        }
-     };
 
-     checkPda();
-   }, [program, globalStatePDA]);
-  const [stats, setStats] = useState({
-    totalStaked: 0,
-    totalStakers: 0,
-    rewardRate: 0,
-    platformFeeBps: 0,
-    rewardVaultBalance: 0,
-  });
+       const logs = txDetails?.meta?.logMessages;
+       const eventLog = logs?.find((l) => l.startsWith("Program data:"));
+
+       if (eventLog) {
+         const encoded = eventLog.replace("Program data: ", "");
+         const decoded = program.coder.events.decode(encoded);
+
+         if (decoded?.name === "poolFunded") {
+           toast.success("Rewards pool funded Successfully!", {
+             cancel: {
+               label: "View Transaction",
+               onClick: () =>
+                 window.open(
+                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   "_blank"
+                 ),
+             },
+           });
+           // Refresh pool details
+           fetchPoolDetails();
+           setFundAmount(0);
+           return;
+         }
+       }
+     } catch (err) {
+       console.error("Error funding pool:", err);
+       toast.error("Something went wrong while funding the pool");
+     } finally {
+       setIsFunding(false);
+     }
+   };
 
    const handleCreateGlobalState = async () => {
-     if (!program || !publicKey) return;
+     if (!program || !publicKey || !globalStatePDA) {
+       toast.error("Missing required dependencies");
+       return;
+     }
+
      try {
        setIsCreatingGlobalState(true);
        const tx = await program.methods
@@ -91,7 +344,6 @@ export default function AdminPage() {
          .rpc();
 
        setPdaExists(true);
-       setIsCreatingGlobalState(false);
        toast.success("Global State Initialized successfully", {
          cancel: {
            label: "View Transaction",
@@ -103,208 +355,174 @@ export default function AdminPage() {
          },
        });
      } catch (error) {
-      console.log(error)
-       setIsCreatingGlobalState(false);
+       console.error("Error creating global state:", error);
        toast.error(`Failed to Create Global State: ${error}`);
      } finally {
        setIsCreatingGlobalState(false);
      }
    };
 
-  const [stakingPoolPda] =
-    program && provider
-      ? PublicKey.findProgramAddressSync(
-          [
-            Buffer.from("staking_pool"),
-            provider.wallet.publicKey.toBuffer(),
-            new PublicKey(TRACKER_MINT).toBuffer(),
-          ],
-          program.programId
-        )
-      : [PublicKey.default];
+   const handleCreateStakingPool = async () => {
+     if (
+       !program ||
+       !provider ||
+       !stakingPoolPda ||
+       !rewardVaultPda ||
+       !stakeVaultPda
+     ) {
+       toast.error("Missing required dependencies");
+       return;
+     }
 
-  const [userStakePda] =
-    program && provider
-      ? PublicKey.findProgramAddressSync(
-          [
-            Buffer.from("user_stake"),
-            provider.wallet.publicKey.toBuffer(),
-            stakingPoolPda.toBuffer(),
-          ],
-          program.programId
-        )
-      : [PublicKey.default];
+     if (!rewardRate || rewardRate <= 0) {
+       toast.error("Please enter a valid reward rate");
+       return;
+     }
 
-  const [stakeVaultPda_] =
-    program && provider
-      ? PublicKey.findProgramAddressSync(
-          [Buffer.from("stake_vault"), stakingPoolPda.toBuffer()],
-          program.programId
-        )
-      : [PublicKey.default];
+     try {
+       setIsCreating(true);
+       const tx = await program.methods
+         .createStakingPool(new anchor.BN(rewardRate))
+         .accounts({
+           //@ts-ignore
+           stakingPool: stakingPoolPda,
+           stakeTokenMint: new PublicKey(TRACKER_MINT),
+           creator: provider.wallet.publicKey,
+           rewardVault: rewardVaultPda,
+           platformFeeVault: provider.publicKey,
+           rewardTokenMint: new PublicKey(TRACKER_MINT),
+           stakeVault: stakeVaultPda,
+           tokenProgram: TOKEN_PROGRAM_ID,
+           systemProgram: SystemProgram.programId,
+         })
+         .rpc();
 
-  const [rewardVaultPda] =
-    program && provider
-      ? PublicKey.findProgramAddressSync(
-          [Buffer.from("reward_vault"), stakingPoolPda.toBuffer()],
-          program.programId
-        )
-      : [PublicKey.default];
+       await new Promise((resolve) => setTimeout(resolve, 2000));
 
+       const txDetails = await connection.getTransaction(tx, {
+         commitment: "confirmed",
+         maxSupportedTransactionVersion: 0,
+       });
 
-  if (!program || !provider) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Program not loaded yet...</p>
-      </div>
-    );
-  }
+       if (!txDetails) {
+         throw new Error("Transaction not found or not confirmed");
+       }
 
-  const handleFundPool = async () => {
-    if (!program || !publicKey) return;
-    if (!fundAmount) {
-      toast.info("Fund Amount is Empty!");
-      return;
-    }
+       const logs = txDetails?.meta?.logMessages;
+       const eventLog = logs?.find((l: any) => l.startsWith("Program data:"));
 
-    const StakeAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      provider.wallet.payer!,
-      new PublicKey(TRACKER_MINT),
-      provider.wallet.publicKey
-    );
+       if (eventLog) {
+         const encoded = eventLog.replace("Program data: ", "");
+         const decoded = program.coder.events.decode(encoded);
 
-    try {
-      setIsFunding(true);
-      const tx = await program.methods
-        .fundRewardPool(new anchor.BN(fundAmount * 10 ** decimals))
-        .accounts({
-          funder: provider.wallet.publicKey,
-          stakingPool: stakingPoolPda,
-          funderRewardAccount: StakeAccount.address,
-          //@ts-ignore
-          rewardVault: rewardVaultPda,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        })
-        .rpc();
+         if (decoded?.name === "poolCreated") {
+           toast.success("Stake pool initialized successfully!", {
+             cancel: {
+               label: "View Transaction",
+               onClick: () =>
+                 window.open(
+                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   "_blank"
+                 ),
+             },
+           });
+           // Refresh data
+           fetchPoolDetails();
+           return;
+         }
+       }
+     } catch (error) {
+       console.error("Error creating staking pool:", error);
+       toast.error("Error Initializing Stake pool");
+     } finally {
+       setIsCreating(false);
+     }
+   };
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+   const handleWithdraw = async () => {
+     if (
+       !program ||
+       !provider ||
+       !stakingPoolPda ||
+       !rewardVaultPda ||
+       !globalStatePDA
+     ) {
+       toast.error("Missing required dependencies");
+       return;
+     }
 
-      const txDetails = await connection.getTransaction(tx, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
-      });
+     try {
+       setIsWithdrawing(true);
 
-      if (!txDetails) {
-        throw new Error("Transaction not found or not confirmed");
-      }
+       const stakeAccount = await getOrCreateAssociatedTokenAccount(
+         provider.connection,
+         provider.wallet.payer!,
+         new PublicKey(TRACKER_MINT),
+         provider.wallet.publicKey
+       );
 
-      const logs = txDetails?.meta?.logMessages;
-      const eventLog = logs?.find((l) => l.startsWith("Program data:"));
+       const tx = await program.methods
+         .withdrawRewardsFromPool(new anchor.BN(rewardRate || 0))
+         .accounts({
+           //@ts-ignore
+           admin: provider.wallet.payer.publicKey,
+           stakingPool: stakingPoolPda,
+           creatorRewardAccount: stakeAccount.address,
+           //@ts-ignore
+           globalState: globalStatePDA,
+           rewardVault: rewardVaultPda,
+           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+         })
+         .rpc();
 
-      if (eventLog) {
-        const encoded = eventLog.replace("Program data: ", "");
-        const decoded = program.coder.events.decode(encoded);
+       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        if (decoded?.name === "poolFunded") {
-          setIsFunding(false);
-          toast.success("Rewards pool funded Succesfully!", {
-            cancel: {
-              label: "View Transaction",
-              onClick: () =>
-                window.open(
-                  `https://solscan.io/tx/${tx}?cluster=devnet`,
-                  "_blank"
-                ),
-            },
-          });
-          return;
-        }
-      }
-      setIsFunding(false);
-    } catch (err) {
-      console.log(err);
-      setIsFunding(false);
-      toast.error(
-        "Something Went Wrong while you were trying to fund the pool "
-      );
-    }
-  };
+       const txDetails = await connection.getTransaction(tx, {
+         commitment: "confirmed",
+         maxSupportedTransactionVersion: 0,
+       });
 
-  const handleCreateStakingPool = async () => {
-    try {
-      setIsCreating(true);
-      const tx = await program.methods
-        .createStakingPool(new anchor.BN(rewardRate))
-        .accounts({
-          //@ts-ignore
-          stakingPool: stakingPoolPda,
-          stakeTokenMint: new PublicKey(TRACKER_MINT),
-          creator: provider.wallet.publicKey,
-          rewardVault: rewardVaultPda,
-          platformFeeVault: provider.publicKey,
-          rewardTokenMint: new PublicKey(TRACKER_MINT),
-          stakeVault: stakeVaultPda_,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
+       if (!txDetails) {
+         throw new Error("Transaction not found or not confirmed");
+       }
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+       const logs = txDetails?.meta?.logMessages;
+       const eventLog = logs?.find((l: any) => l.startsWith("Program data:"));
 
-      const txDetails = await connection.getTransaction(tx, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
-      });
+       if (eventLog) {
+         const encoded = eventLog.replace("Program data: ", "");
+         const decoded = program.coder.events.decode(encoded);
 
-      if (!txDetails) {
-        throw new Error("Transaction not found or not confirmed");
-      }
-
-      const logs = txDetails?.meta?.logMessages;
-      const eventLog = logs?.find((l) => l.startsWith("Program data:"));
-
-      if (eventLog) {
-        const encoded = eventLog.replace("Program data: ", "");
-        const decoded = program.coder.events.decode(encoded);
-
-        if (decoded?.name === "poolCreated") {
-          setIsCreating(false);
-          toast.success("Stake pool initialized successfully!", {
-            cancel: {
-              label: "View Transaction",
-              onClick: () =>
-                window.open(
-                  `https://solscan.io/tx/${tx}?cluster=devnet`,
-                  "_blank"
-                ),
-            },
-          });
-          return;
-        }
-      }
-      setIsCreating(false);
-    } catch (error) {
-      console.log(error);
-      setIsCreating(false);
-      toast.error("Error Initializing Stake pool");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  function handleWithdraw() {
-    setIsWithdrawing(true);
-    setTimeout(() => setIsWithdrawing(false), 1500);
-  }
-
+         if (decoded?.name === "remainingClaimed") {
+           toast.success("Remaining funds withdrawn successfully!", {
+             cancel: {
+               label: "View Transaction",
+               onClick: () =>
+                 window.open(
+                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   "_blank"
+                 ),
+             },
+           });
+           // Refresh data
+           fetchPoolDetails();
+           return;
+         }
+       }
+     } catch (error) {
+       console.error("Error withdrawing funds:", error);
+       toast.error("Error withdrawing remaining funds");
+     } finally {
+       setIsWithdrawing(false);
+     }
+   };
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/TRACKER-bg.svg')] bg-no-repeat bg-top bg-contain">
       <Header />
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-6xl space-y-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-primary">Admin Panel</h1>
+            <h1 className="text-4xl font-bold text-[#00FF9C]">Admin Panel</h1>
             <p className="text-muted-foreground">
               Manage the staking pool and rewards.
             </p>
@@ -320,7 +538,7 @@ export default function AdminPage() {
             />
             <StatCard
               title="Total Stakers"
-              value={formatNumber(stats.totalStakers)}
+              value={formatNumber(stakes?.length) || 0}
               icon={<Users className="h-4 w-4 text-muted-foreground" />}
               subtitle="Active stakers in the pool"
             />
@@ -332,9 +550,9 @@ export default function AdminPage() {
             />
             <StatCard
               title="Platform Fee"
-              value={`${stats.platformFeeBps / 100}%`}
+              value={`${(globalState?.platform_fee_bps || 0) / 100}%`}
               icon={<Percent className="h-4 w-4 text-muted-foreground" />}
-              subtitle={`${stats.platformFeeBps} BPS`}
+              subtitle={`Platform Fee BPS`}
             />
           </div>
 
@@ -381,10 +599,10 @@ export default function AdminPage() {
                       readOnly
                     />
                   </div>
-             
+
                   <div className="flex justify-end">
                     <Button
-                      className="button-glow"
+                      className="button-glow bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                       onClick={handleCreateGlobalState}
                       disabled={isCreatingGlobalState || pdaExists === null}
                     >
@@ -401,7 +619,7 @@ export default function AdminPage() {
 
             {/* Actions */}
             <div className="grid gap-6 md:grid-cols-1">
-              <Card className="bg-card/80 backdrop-blur-sm">
+              <Card className="bg-secondary/30 backdrop-blur-sm card-glow">
                 <CardHeader>
                   <CardTitle>Pool Configuration</CardTitle>
                 </CardHeader>
@@ -410,12 +628,20 @@ export default function AdminPage() {
                     type="number"
                     step="0.0001"
                     placeholder="Enter new reward rate"
-                    className="bg-background/50"
+                    className="bg-background/50 focus:outline-none border-none outline-none"
                     value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}
                   />
+                  <div className="text-xs text-muted-foreground p-2 bg-card mb-1 rounded-md flex items-center gap-2">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <span>
+                      Staking <strong>100</strong> tokens would yield
+                      approximately <strong>{calculateExampleReward()}</strong>{" "}
+                      tokens after 30 days.
+                    </span>
+                  </div>
                   <Button
-                    className="w-full"
+                    className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                     disabled={isCreating}
                     onClick={handleCreateStakingPool}
                   >
@@ -427,7 +653,7 @@ export default function AdminPage() {
               </Card>
 
               {/* Reward Vault - move this DOWN */}
-              <Card className="bg-card/80 backdrop-blur-sm">
+              <Card className="bg-secondary/30 backdrop-blur-sm card-glow">
                 <CardHeader>
                   <CardTitle>Reward Vault</CardTitle>
                 </CardHeader>
@@ -435,7 +661,7 @@ export default function AdminPage() {
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold">Current Balance</h3>
-                      <p className="text-3xl font-bold text-primary">
+                      <p className="text-3xl font-bold text-[#00FF9C]">
                         {formatNumber(stats.rewardVaultBalance)} TRACKER
                       </p>
                     </div>
@@ -453,7 +679,7 @@ export default function AdminPage() {
                           className="bg-background/50"
                         />
                         <Button
-                          className="w-full"
+                          className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                           disabled={isFunding}
                           onClick={handleFundPool}
                         >
@@ -470,7 +696,7 @@ export default function AdminPage() {
                         />
                         <Button
                           variant="secondary"
-                          className="w-full"
+                          className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                           disabled={isWithdrawing}
                           onClick={handleWithdraw}
                         >
@@ -504,7 +730,7 @@ function StatCard({
   icon: React.ReactNode;
 }) {
   return (
-    <Card className="bg-card/80 backdrop-blur-sm">
+    <Card className="backdrop-blur-sm  bg-[#00302C] border border-[#00FF9C]/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {icon}
