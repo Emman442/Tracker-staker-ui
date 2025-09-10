@@ -473,7 +473,7 @@ export default function StakingPage() {
       <Header />
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-6xl space-y-6">
-          <Card className="bg-card/80 backdrop-blur-sm">
+          <Card className="backdrop-blur-sm  bg-[#00302C] border border-[#00FF9C]/30 ">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">TRACKER Staking</h2>
               <div className="flex-1 w-full md:w-auto flex flex-col items-center">
@@ -495,11 +495,11 @@ export default function StakingPage() {
                       (stakingPoolDetails?.maxPoolSize ?? 1_000_000_000)) *
                     100
                   }
-                  className="h-2 bg-primary/20 w-1/2"
+                  className="h-2 bg-[#00FF9C]/50 w-1/2"
                 />
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">REWARD</p>
+                <p className="text-sm  text-center text-muted-foreground">REWARD</p>
                 <p className="font-semibold whitespace-nowrap">
                   {" "}
                   {calculateDailyReward(
@@ -519,20 +519,19 @@ export default function StakingPage() {
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
                   <Button
-                    // variant="secondary"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => setLockupPeriod(7)}
                     className={`${
-                      lockupPeriod === 7 ? "bg-primary/90" : ""
-                    } hover:bg-primary/90 text-primary-foreground border-none text-white flex-1`}
+                      lockupPeriod === 7 ? "bg-[#00FF9C]" : ""
+                    } hover:bg-[#00FF9C]/90 text-primary-foreground border-none text-white flex-1`}
                   >
                     7 days
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => setLockupPeriod(30)}
                     className={`${
-                      lockupPeriod === 30 ? "bg-primary" : ""
+                      lockupPeriod === 30 ? "bg-[#00FF9C]" : ""
                     } border-none hover:bg-gray-800 flex-1`}
                   >
                     30 days
@@ -571,7 +570,7 @@ export default function StakingPage() {
                         setStakeAmount(Number(e.target.value));
                       }}
                     />
-                    <div className="flex items-center gap-1 justify-center bg-primary text-primary-foreground px-3 py-1 rounded-md">
+                    <div className="flex  mt-1 items-center gap-1 justify-center bg-[#00FF9C] text-primary-foreground px-3 py-1 rounded-md">
                       <Image
                         src={src}
                         width={24}
@@ -583,7 +582,7 @@ export default function StakingPage() {
                       <span className="font-bold">TRACKER</span>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="text-xs text-gray-500 mt-">
                     Balance: {tokenBalace} TRACKER
                   </div>
                 </div>
@@ -591,7 +590,7 @@ export default function StakingPage() {
                   size="lg"
                   onClick={handleStake}
                   disabled={isStaking}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg"
+                  className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/90 text-primary-foreground font-bold text-lg"
                 >
                   {isStaking ? "Staking..." : "Stake"}
                 </Button>
@@ -606,28 +605,28 @@ export default function StakingPage() {
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
                     <div className="text-gray-400">Your Locked Tokens</div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl font-bold">
                       {(userDetails?.amount.toString() ?? 0) / 10 ** decimals}{" "}
                       TRACKER
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-400">Your Claimable Tokens</div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl font-bold">
                       {claimable.toFixed(1)} TRACKER
                     </div>
                   </div>
                 </div>
                 <Button
                   size="lg"
-                  className="w-full bg-gray-400 hover:bg-gray-600"
+                  className="w-full bg-gray-300 hover:bg-gray-400"
                   disabled={!canClaim}
                   onClick={handleClaim}
                 >
                   {isClaiming ? "Claiming..." : "Claim"}
                 </Button>
 
-                <div className="border border-destructive/50 rounded-md p-3 bg-gray-800/50">
+                <div className="border  rounded-md p-3 bg-gray-800/50">
                   <div className="flex justify-between items-center text-sm">
                     <span>Unstake</span>
                     <span className="text-gray-400 text-[12px]">
@@ -673,7 +672,7 @@ export default function StakingPage() {
                           Half
                         </Button>
                       </div>
-                      <div className="flex items-center justify-center gap-1 bg-destructive text-destructive-foreground px-4 py-1 rounded-md">
+                      <div className="flex items-center justify-center gap-1 bg-[#00FF9C] text-destructive-foreground px-4 py-1 rounded-md">
                         <Image
                           src={src}
                           width={24}
@@ -682,14 +681,14 @@ export default function StakingPage() {
                           className="rounded-full object-fit"
                           data-ai-hint="token icon"
                         />
-                        <span className="font-bold">TRACKER</span>
+                        <span className="font-bold text-black">TRACKER</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 <Button
                   size="lg"
-                  className="w-full bg-gray-400 hover:bg-gray-600"
+                  className="w-full bg-gray-300 hover:bg-gray-400"
                   disabled={!canUnstake || isUnstaking}
                   onClick={handleUnstake}
                 >
@@ -759,7 +758,7 @@ export default function StakingPage() {
                             >
                               <Link
                                 href={`https://solscan.io/tx/${activity.transaction}?cluster=devnet`}
-                                className="flex items-center gap-1 hover:text-primary transition-colors"
+                                className="flex items-center gap-1 hover:text-[#00FF9C] transition-colors"
                               >
                                 {truncateHash(activity.transaction)}
                                 <ExternalLink className="h-4 w-4" />
