@@ -200,7 +200,6 @@ export default function AdminPage() {
      }
    }, [program, stakingPoolPda, connection]);
 
-   // Now use the memoized functions in useEffect
    useEffect(() => {
      checkPda();
    }, [checkPda]);
@@ -221,16 +220,16 @@ export default function AdminPage() {
        </div>
      );
    }
-
+   console.log(rewardRate)
    const calculateExampleReward = () => {
-     if (!stats.rewardRate) return "0";
-     if (Number(stats.rewardRate) <= 0) return "0";
+     if (!rewardRate) return "0";
+     if (Number(rewardRate) <= 0) return "0";
 
      try {
        const tokensStaked = 100;
        const secondsIn30Days = 30 * 24 * 60 * 60;
        const totalReward =
-         (((Number(stats.rewardRate) * tokensStaked) / 10 ** decimals!) *
+         (((Number(rewardRate) * tokensStaked) / 10 ** decimals!) *
            secondsIn30Days) /
          10 ** 4;
        return totalReward.toLocaleString(undefined, {
@@ -571,7 +570,12 @@ export default function AdminPage() {
                 <CardContent className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="admin">Admin Address</Label>
-                    <Input id="admin" value={globalState.admin} readOnly />
+                    <Input
+                      id="admin"
+                      value={globalState.admin}
+                      readOnly
+                      className="focus:outline-none border-none-outline-none"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="platform-fee">Platform Fee (BPS)</Label>
@@ -579,7 +583,7 @@ export default function AdminPage() {
                       id="platform-fee"
                       type="number"
                       value={globalState.platform_fee_bps}
-                      // readOnly
+                      className="focus:outline-none border-none-outline-none"
                       onChange={(e) => {
                         setGlobalState({
                           ...globalState,
@@ -597,6 +601,7 @@ export default function AdminPage() {
                       id="fee-vault"
                       value={globalState.platform_fee_vault}
                       readOnly
+                      className="focus:outline-none border-none-outline-none"
                     />
                   </div>
 
@@ -631,6 +636,7 @@ export default function AdminPage() {
                     className="bg-background/50 focus:outline-none border-none outline-none"
                     value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}
+                    // onChange={(e) => setR(Number(e.target.value))}
                   />
                   <div className="text-xs text-muted-foreground p-2 bg-card mb-1 rounded-md flex items-center gap-2">
                     <Info className="h-4 w-4 shrink-0" />
@@ -676,7 +682,7 @@ export default function AdminPage() {
                           onChange={(e) =>
                             setFundAmount(Number(e.target.value))
                           }
-                          className="bg-background/50"
+                          className="bg-background/50 focus:outline-none border-none-outline-none"
                         />
                         <Button
                           className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
@@ -692,7 +698,7 @@ export default function AdminPage() {
                         <Input
                           type="number"
                           placeholder="Enter amount to withdraw"
-                          className="bg-background/50"
+                          className="bg-background/50 focus:outline-none border-none-outline-none"
                         />
                         <Button
                           variant="secondary"
