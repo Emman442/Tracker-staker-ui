@@ -1,5 +1,5 @@
 {
-    "address": "EX6MbtUk2dbs1KVAcG2t1arQpb4Ps1cpg6u2Ys55oVW",
+    "address": "AHTdB1dr1ac4QPVFn8Ho4f4bNAATbkq383qPtVyjGh6D",
     "metadata": {
         "name": "seeker_program",
         "version": "0.1.0",
@@ -811,6 +811,19 @@
             ]
         },
         {
+            "name": "RemainingClaimed",
+            "discriminator": [
+                71,
+                167,
+                253,
+                120,
+                242,
+                32,
+                5,
+                151
+            ]
+        },
+        {
             "name": "RewardRateUpdated",
             "discriminator": [
                 176,
@@ -987,6 +1000,26 @@
             }
         },
         {
+            "name": "RemainingClaimed",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "pool",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "user",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
             "name": "RewardRateUpdated",
             "type": {
                 "kind": "struct",
@@ -1070,6 +1103,14 @@
                     {
                         "name": "stake_vault",
                         "type": "pubkey"
+                    },
+                    {
+                        "name": "reward_per_token_stored",
+                        "type": "u128"
+                    },
+                    {
+                        "name": "last_update_time",
+                        "type": "i64"
                     }
                 ]
             }
@@ -1141,7 +1182,7 @@
                     },
                     {
                         "name": "pending_rewards",
-                        "type": "u64"
+                        "type": "u128"
                     },
                     {
                         "name": "total_claimed",
@@ -1162,6 +1203,10 @@
                     {
                         "name": "lockup_duration",
                         "type": "i64"
+                    },
+                    {
+                        "name": "user_reward_per_token_paid",
+                        "type": "u128"
                     }
                 ]
             }

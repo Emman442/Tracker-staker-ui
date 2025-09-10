@@ -40,6 +40,7 @@ import Link from "next/link";
 import { usePostData } from "@/hooks/usePostData";
 import { formatNumber } from "@/helpers/formatNumber";
 import { BalanceLoader } from "@/components/ui/balance-loader";
+import { calculateClaimable, calculateDailyRewards } from "@/helpers/calculateRewards";
 
 export default function StakingPage() {
   const { publicKey } = useWallet();
@@ -190,7 +191,7 @@ const refetchTokenBalance = useCallback(
     }
   }, [program, globalStatePda]);
 
-  // Refetch all data
+ 
   const refetchAllData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -217,35 +218,20 @@ const refetchTokenBalance = useCallback(
     }
   }, [publicKey, program]);
 
-  function calculateClaimable() {
-    if (!userDetails || !stakingPoolDetails) return 0;
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      const timeElapsed = now - userDetails.lastUpdateTime.toNumber();
-      const newRewards =
-        timeElapsed *
-        (userDetails?.amount.toNumber() / 10 ** decimals) *
-        (stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000);
-      return userDetails?.pendingRewards.toNumber() + newRewards || 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  function calculateDailyReward(tokensStaked: number) {
-    if (!stakingPoolDetails || !tokensStaked) return 0;
-    try {
-      const secondsInDay = 86400;
-      return (
-        ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
-          tokensStaked *
-          secondsInDay) /
-        10 ** decimals
-      );
-    } catch {
-      return 0;
-    }
-  }
+  // function calculateDailyReward(tokensStaked: number) {
+  //   if (!stakingPoolDetails || !tokensStaked) return 0;
+  //   try {
+  //     const secondsInDay = 86400;
+  //     return (
+  //       ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
+  //         tokensStaked *
+  //         secondsInDay) /
+  //       10 ** decimals
+  //     );
+  //   } catch {
+  //     return 0;
+  //   }
+  // }
 
   // Calculated values with safe defaults
   const lockupDurationSeconds = userDetails?.lockupDuration?.toNumber() || 0;
@@ -257,7 +243,10 @@ const refetchTokenBalance = useCallback(
   const endDate = new Date(endTimeSec * 1000);
   const nowSec = Math.floor(Date.now() / 1000);
   const canUnstake = unstakeAmount > 0 && nowSec >= endTimeSec;
-  const claimable = calculateClaimable() / 10 ** decimals;
+
+  // const claimable = (userDetails?.pendingRewards.toNumber() || 0)/ 10 ** decimals;
+  const claimable = calculateClaimable(userDetails, stakingPoolDetails, decimals)
+  const dailyRewards = calculateDailyRewards(userDetails, stakingPoolDetails, decimals)
   const canClaim = claimable > 0;
 
   if (!publicKey) {
@@ -515,7 +504,8 @@ const refetchTokenBalance = useCallback(
       setIsClaiming(false);
     }
   };
-
+console.log(userDetails)
+console.log(dailyRewards)
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-top bg-contain">
       <Header />
@@ -552,9 +542,7 @@ const refetchTokenBalance = useCallback(
                 </p>
                 <p className="font-semibold whitespace-nowrap">
                   {" "}
-                  {calculateDailyReward(
-                    (userDetails?.amount?.toNumber() ?? 0) / 10 ** decimals
-                  ).toFixed(5)}{" "}
+                  {dailyRewards?.toFixed(5)}{" "}
                   TRACKER/day
                 </p>
               </div>
