@@ -33,32 +33,22 @@ export function Header() {
         >
           {"Seeker Staker".toUpperCase()}
         </Link>
-        <Link
-          href="#"
-          className="text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Airdrop
-        </Link>
       </nav>
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        
-          <SocialIcons />
-   
+        <SocialIcons />
 
-       
-          <WalletMultiButton
-            style={{
-              background: "transparent",
-              height: "40px",
-              fontSize: "14px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              color: "#00E6B8",
-              border: "1px solid #00E6B8",
-            }}
-          />
-
+        <WalletMultiButton
+          style={{
+            background: "transparent",
+            height: "40px",
+            fontSize: "14px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            color: "#00E6B8",
+            border: "1px solid #00E6B8",
+          }}
+        />
       </div>
     </header>
   );
