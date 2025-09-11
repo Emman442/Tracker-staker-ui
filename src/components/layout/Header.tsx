@@ -1,23 +1,21 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Wallet, } from 'lucide-react';
-import dynamic from 'next/dynamic';
-import { useWallet } from '@solana/wallet-adapter-react';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Wallet } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useWallet } from "@solana/wallet-adapter-react";
 const WalletMultiButton = dynamic(
   async () =>
     (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
   { ssr: false }
 );
-import {FaXTwitter} from "react-icons/fa6"
-import Image from 'next/image';
-import SocialIcons from '../ui/socialIcons';
-
+import { FaXTwitter } from "react-icons/fa6";
+import Image from "next/image";
+import SocialIcons from "../ui/socialIcons";
 
 export function Header() {
-
- const { connected } = useWallet();
+  const { connected } = useWallet();
   return (
     <header className="sticky top-0 flex h-20 items-center gap-4 px-4 md:px-6 z-50 bg-background/80 backdrop-blur-sm">
       <Image
@@ -43,32 +41,24 @@ export function Header() {
         </Link>
       </nav>
       <div className="flex-1" />
-      <div className="flex items-center gap-4">
-       <SocialIcons/>
+      <div className="flex items-center gap-2">
+        
+          <SocialIcons />
+   
 
-        <div className="flex flex-1 items-center justify-end space-x-4">
-          <div className="flex gap-2 items-center">
-            <div className="relative">
-              <WalletMultiButton
-                style={{
-                  background: "transparent",
-                  height: "40px",
-                  padding: "0 16px 0 40px",
-                  fontSize: "14px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  color: "#00E6B8",
-                  border: "1px solid #00E6B8",
-                }}
-              />
-              {connected ? (
-                <span className="left-0 absolute"></span>
-              ) : (
-                <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#00E6B8] pointer-events-none" />
-              )}
-            </div>
-          </div>
-        </div>
+       
+          <WalletMultiButton
+            style={{
+              background: "transparent",
+              height: "40px",
+              fontSize: "14px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              color: "#00E6B8",
+              border: "1px solid #00E6B8",
+            }}
+          />
+
       </div>
     </header>
   );
