@@ -637,16 +637,15 @@ export default function AdminPage() {
                     className="bg-background/50 focus:outline-none border-none outline-none"
                     value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}
-                    // onChange={(e) => setR(Number(e.target.value))}
                   />
-                  <div className="text-xs text-muted-foreground p-2 bg-card mb-1 rounded-md flex items-center gap-2">
+                  {/* <div className="text-xs text-muted-foreground p-2 bg-card mb-1 rounded-md flex items-center gap-2">
                     <Info className="h-4 w-4 shrink-0" />
                     <span>
                       Staking <strong>100</strong> tokens would yield
                       approximately <strong>{calculateExampleReward()}</strong>{" "}
                       tokens after 30 days.
                     </span>
-                  </div>
+                  </div> */}
                   <Button
                     className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                     disabled={isCreating}
