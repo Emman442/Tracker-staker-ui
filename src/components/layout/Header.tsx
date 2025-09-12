@@ -8,10 +8,8 @@ const WalletMultiButton = dynamic(
     (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
   { ssr: false }
 );
-import { FaXTwitter } from "react-icons/fa6";
 import Image from "next/image";
 import SocialIcons from "../ui/socialIcons";
-import { getMintInfo } from "@/helpers/getMintInfo";
 
 export function Header() {
   const { connected } = useWallet();
