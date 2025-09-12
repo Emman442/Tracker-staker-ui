@@ -633,7 +633,7 @@ export default function AdminPage() {
                   <Input
                     type="number"
                     step="0.0001"
-                    placeholder="Enter new reward rate"
+                    placeholder="Enter new reward rate e.g 100, 1000, 10000"
                     className="bg-background/50 focus:outline-none border-none outline-none"
                     value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}

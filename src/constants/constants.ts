@@ -1,4 +1,4 @@
 // export const TRACKER_MINT = "ehipS3kn9GUSnEMgtB9RxCNBVfH5gTNRVxNtqFTBAGS"
 export const TRACKER_MINT = "ehipS3kn9GUSnEMgtB9RxCNBVfH5gTNRVxNtqFTBAGS"
 export const decimals = 9
-export const platformFeeVault = ""
+export const platformFeeVault = "Deqi6CBfo2FR2XVZXxSwmcjELy1JdbAXWDNFPzDAbtxW"
