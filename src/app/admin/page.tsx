@@ -36,7 +36,7 @@ export default function AdminPage() {
    // Memoize connection to prevent re-creation
    const connection = useMemo(
      () =>
-       new Connection(clusterApiUrl("devnet"), {
+       new Connection(clusterApiUrl("mainnet-beta"), {
          commitment: "confirmed",
        }),
      []
@@ -305,7 +305,7 @@ export default function AdminPage() {
                label: "View Transaction",
                onClick: () =>
                  window.open(
-                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   `https://solscan.io/tx/${tx}`,
                    "_blank"
                  ),
              },
@@ -349,7 +349,7 @@ export default function AdminPage() {
            label: "View Transaction",
            onClick: () =>
              window.open(
-               `https://solscan.io/tx/${tx}?cluster=devnet`,
+               `https://solscan.io/tx/${tx}`,
                "_blank"
              ),
          },
@@ -421,7 +421,7 @@ export default function AdminPage() {
                label: "View Transaction",
                onClick: () =>
                  window.open(
-                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   `https://solscan.io/tx/${tx}`,
                    "_blank"
                  ),
              },
@@ -499,7 +499,7 @@ export default function AdminPage() {
                label: "View Transaction",
                onClick: () =>
                  window.open(
-                   `https://solscan.io/tx/${tx}?cluster=devnet`,
+                   `https://solscan.io/tx/${tx}`,
                    "_blank"
                  ),
              },

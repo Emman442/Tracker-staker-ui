@@ -21,9 +21,8 @@ export default function AppWalletProvider({
 }: {
   children: React.ReactNode;
 }) {
-  // const network = WalletAdapterNetwork.Devnet;
 
-  const network = "https://api.devnet.solana.com";
+  const network = "https://api.mainnet-beta.solana.com";
   const endpoint = useMemo(() => network, [network]);
   const wallets = useMemo(
     () => [
@@ -34,14 +33,12 @@ export default function AppWalletProvider({
   );
 
   return (
-    
-      <QueryClientProvider client={queryClient}>
-        <ConnectionProvider endpoint={endpoint}>
+    <QueryClientProvider client={queryClient}>
+      <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={[]} autoConnect>
           <WalletModalProvider>{children}</WalletModalProvider>
         </WalletProvider>
-         </ConnectionProvider>
-      </QueryClientProvider>
-   
+      </ConnectionProvider>
+    </QueryClientProvider>
   );
 }

@@ -60,7 +60,7 @@ export default function StakingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const src = "/seekerstake.jpeg";
 
-  const connection = new Connection(clusterApiUrl("devnet"), {
+  const connection = new Connection(clusterApiUrl("mainnet-beta"), {
     commitment: "confirmed",
   });
   const provider = wallet
@@ -323,7 +323,7 @@ const refetchTokenBalance = useCallback(
               label: "View Transaction",
               onClick: () =>
                 window.open(
-                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  `https://solscan.io/tx/${tx}`,
                   "_blank"
                 ),
             },
@@ -401,7 +401,7 @@ const refetchTokenBalance = useCallback(
               label: "View Transaction",
               onClick: () =>
                 window.open(
-                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  `https://solscan.io/tx/${tx}`,
                   "_blank"
                 ),
             },
@@ -481,8 +481,6 @@ const refetchTokenBalance = useCallback(
           };
 
           mutate(newActivity);
-
-          // Refetch all data after successful claim
           await refetchAllData();
 
           toast.success("You've successfully claimed your rewards!", {
@@ -490,7 +488,7 @@ const refetchTokenBalance = useCallback(
               label: "View Transaction",
               onClick: () =>
                 window.open(
-                  `https://solscan.io/tx/${tx}?cluster=devnet`,
+                  `https://solscan.io/tx/${tx}`,
                   "_blank"
                 ),
             },
@@ -798,13 +796,13 @@ console.log(dailyRewards)
 
                           <TableCell>
                             <a
-                              href={`https://explorer.solana.com/tx/${activity.transaction}?cluster=devnet`}
+                              href={`https://explorer.solana.com/tx/${activity.transaction}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-400 hover:underline"
                             >
                               <Link
-                                href={`https://solscan.io/tx/${activity.transaction}?cluster=devnet`}
+                                href={`https://solscan.io/tx/${activity.transaction}`}
                                 className="flex items-center gap-1 hover:text-[#00FF9C] transition-colors"
                               >
                                 {truncateHash(activity.transaction)}

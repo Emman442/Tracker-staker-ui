@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/seeker_program.json`.
  */
 export type SeekerProgram = {
-    "address": "EX6MbtUk2dbs1KVAcG2t1arQpb4Ps1cpg6u2Ys55oVW",
+    "address": "Cd6YWBPWpFTv6TCNHvLTUrLhESmT3JrfpFbcgNY4HNdw",
     "metadata": {
         "name": "seekerProgram",
         "version": "0.1.0",
@@ -643,6 +643,40 @@ export type SeekerProgram = {
             ]
         },
         {
+            "name": "updateStakingPool",
+            "discriminator": [
+                49,
+                122,
+                53,
+                40,
+                235,
+                159,
+                240,
+                59
+            ],
+            "accounts": [
+                {
+                    "name": "stakingPool",
+                    "writable": true
+                },
+                {
+                    "name": "user",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "systemProgram",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "rewardRatePerTokenPerSecond",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
             "name": "withdrawRewardsFromPool",
             "discriminator": [
                 16,
@@ -814,6 +848,32 @@ export type SeekerProgram = {
                 211,
                 159,
                 236
+            ]
+        },
+        {
+            "name": "poolUpdated",
+            "discriminator": [
+                218,
+                43,
+                210,
+                231,
+                127,
+                214,
+                72,
+                245
+            ]
+        },
+        {
+            "name": "remainingClaimed",
+            "discriminator": [
+                71,
+                167,
+                253,
+                120,
+                242,
+                32,
+                5,
+                151
             ]
         },
         {
@@ -993,6 +1053,38 @@ export type SeekerProgram = {
             }
         },
         {
+            "name": "poolUpdated",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "rewardRate",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "remainingClaimed",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "pool",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "user",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
             "name": "rewardRateUpdated",
             "type": {
                 "kind": "struct",
@@ -1076,6 +1168,14 @@ export type SeekerProgram = {
                     {
                         "name": "stakeVault",
                         "type": "pubkey"
+                    },
+                    {
+                        "name": "rewardPerTokenStored",
+                        "type": "u128"
+                    },
+                    {
+                        "name": "lastUpdateTime",
+                        "type": "i64"
                     }
                 ]
             }
@@ -1147,7 +1247,7 @@ export type SeekerProgram = {
                     },
                     {
                         "name": "pendingRewards",
-                        "type": "u64"
+                        "type": "u128"
                     },
                     {
                         "name": "totalClaimed",
@@ -1168,6 +1268,10 @@ export type SeekerProgram = {
                     {
                         "name": "lockupDuration",
                         "type": "i64"
+                    },
+                    {
+                        "name": "userRewardPerTokenPaid",
+                        "type": "u128"
                     }
                 ]
             }

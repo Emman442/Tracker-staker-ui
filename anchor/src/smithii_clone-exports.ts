@@ -21,7 +21,7 @@ export function getSeekerProgramId(cluster: Cluster) {
         case 'devnet':
         case 'testnet':
             // This is the program ID for the Counter program on devnet and testnet.
-            return new PublicKey("AHTdB1dr1ac4QPVFn8Ho4f4bNAATbkq383qPtVyjGh6D")
+            return new PublicKey("Cd6YWBPWpFTv6TCNHvLTUrLhESmT3JrfpFbcgNY4HNdw")
         case 'mainnet-beta':
         default:
             return SEEKER_PROGRAM_ID

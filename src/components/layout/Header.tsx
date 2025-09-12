@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Wallet } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 const WalletMultiButton = dynamic(
@@ -13,9 +11,11 @@ const WalletMultiButton = dynamic(
 import { FaXTwitter } from "react-icons/fa6";
 import Image from "next/image";
 import SocialIcons from "../ui/socialIcons";
+import { getMintInfo } from "@/helpers/getMintInfo";
 
 export function Header() {
   const { connected } = useWallet();
+
   return (
     <header className="sticky top-0 flex h-20 items-center gap-4 px-4 md:px-6 z-50 bg-background/80 backdrop-blur-sm">
       <Image
