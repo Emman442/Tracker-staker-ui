@@ -15,32 +15,38 @@ export function Header() {
   const { connected } = useWallet();
 
   return (
-    <header className="sticky top-0 flex h-20 items-center gap-4 px-4 md:px-6 z-50 bg-background/80 backdrop-blur-sm">
+    <header className="sticky top-0 flex h-16 md:h-20 items-center gap-4 px-3 md:px-6 z-50 bg-background/80 backdrop-blur-sm">
+      {/* Logo */}
       <Image
         src="/seeker-tracker.png"
         alt="seeker staker logo"
-        width={45}
-        height={45}
-        className="rounded-full"
+        width={35}
+        height={35}
+        className="rounded-full md:w-[45px] md:h-[45px]"
       />
 
-      <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+      {/* Title */}
+      <nav className="flex items-center">
         <Link
           href="#"
-          className="text-muted-foreground text-[#00FF9C] transition-colors hover:text-foreground text-xl"
+          className="text-[#00FF9C] transition-colors hover:text-foreground text-base md:text-lg lg:text-xl font-semibold"
         >
-          {"Seeker Staker".toUpperCase()}
+          {"Tracker Stacker".toUpperCase()}
         </Link>
       </nav>
+
+      {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Social icons + Wallet */}
       <div className="flex items-center gap-2">
         <SocialIcons />
 
         <WalletMultiButton
           style={{
             background: "transparent",
-            height: "40px",
-            fontSize: "14px",
+            height: "36px",
+            fontSize: "12px",
             borderRadius: "8px",
             cursor: "pointer",
             color: "#00E6B8",

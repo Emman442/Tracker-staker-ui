@@ -22,7 +22,7 @@ export default function AppWalletProvider({
   children: React.ReactNode;
 }) {
 
-  const network = "https://api.mainnet-beta.solana.com";
+  const network = "https://cassandra-bq5oqs-fast-mainnet.helius-rpc.com/";
   const endpoint = useMemo(() => network, [network]);
   const wallets = useMemo(
     () => [

@@ -28,20 +28,14 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { Label } from "recharts";
+import { useSolanaConnection } from "@/hooks/useConnection";
 
 export default function AdminPage() {
    const { publicKey } = useWallet();
    const { program, provider } = useProgram();
 
    // Memoize connection to prevent re-creation
-   const connection = useMemo(
-     () =>
-       new Connection(clusterApiUrl("mainnet-beta"), {
-         commitment: "confirmed",
-       }),
-     []
-   );
-
+   const connection = useSolanaConnection()
    const [globalState, setGlobalState] = useState({
      admin: "",
      platform_fee_bps: 0,
@@ -59,7 +53,6 @@ export default function AdminPage() {
    const [isCreating, setIsCreating] = useState(false);
    const [isFunding, setIsFunding] = useState(false);
    const [isWithdrawing, setIsWithdrawing] = useState(false);
-   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
    const [rewardRate, setRewardRate] = useState<number>();
    const [pdaExists, setPdaExists] = useState<boolean | null>(null);
    const [stakes, setStakes] = useState<any>([]);

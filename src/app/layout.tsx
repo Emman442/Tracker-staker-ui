@@ -4,10 +4,12 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import {Toaster} from "sonner"
 import AppWalletProvider from '@/providers/AppWalletProvider';
+import Script from 'next/script';
+import PluginComponent from '@/components/ui/plugin';
 
 export const metadata: Metadata = {
-  title: 'TrackerStake',
-  description: 'Stake your $TRACKER tokens and earn rewards.',
+  title: 'Tracker Stacker',
+  description: 'Stack your $TRACKER tokens and earn rewards.',
 };
 
 export default function RootLayout({
@@ -32,11 +34,18 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap"
           rel="stylesheet"
         />
+        <Script
+          src="https://plugin.jup.ag/plugin-v1.js"
+          strategy="beforeInteractive"
+          data-preload
+          defer
+        />
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
         <AppWalletProvider>
           {children}
           <Toaster position="bottom-right" />
+          <PluginComponent />
         </AppWalletProvider>
       </body>
     </html>

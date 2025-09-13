@@ -18,8 +18,6 @@ import { Header } from "@/components/layout/Header";
 import { Progress } from "@/components/ui/progress";
 import { formatDate } from "@/helpers/formatDate";
 import {
-  clusterApiUrl,
-  Connection,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
@@ -33,7 +31,6 @@ import {
   getOrCreateAssociatedTokenAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { getTokenBalance } from "@/helpers/getTokenBalance";
 import { ExternalLink } from "lucide-react";
 import { truncateHash } from "@/helpers/truncateHash";
 import Link from "next/link";
@@ -41,6 +38,7 @@ import { usePostData } from "@/hooks/usePostData";
 import { formatNumber } from "@/helpers/formatNumber";
 import { BalanceLoader } from "@/components/ui/balance-loader";
 import { calculateClaimable, calculateDailyRewards } from "@/helpers/calculateRewards";
+import { useSolanaConnection } from "@/hooks/useConnection";
 
 export default function StakingPage() {
   const { publicKey } = useWallet();
@@ -60,9 +58,7 @@ export default function StakingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const src = "/seekerstake.jpeg";
 
-  const connection = new Connection(clusterApiUrl("mainnet-beta"), {
-    commitment: "confirmed",
-  });
+  const connection = useSolanaConnection()
   const provider = wallet
     ? new AnchorProvider(connection, wallet, {
         preflightCommitment: "processed",
@@ -218,22 +214,6 @@ const refetchTokenBalance = useCallback(
     }
   }, [publicKey, program]);
 
-  // function calculateDailyReward(tokensStaked: number) {
-  //   if (!stakingPoolDetails || !tokensStaked) return 0;
-  //   try {
-  //     const secondsInDay = 86400;
-  //     return (
-  //       ((stakingPoolDetails.rewardRatePerTokenPerSecond.toNumber() / 10000) *
-  //         tokensStaked *
-  //         secondsInDay) /
-  //       10 ** decimals
-  //     );
-  //   } catch {
-  //     return 0;
-  //   }
-  // }
-
-  // Calculated values with safe defaults
   const lockupDurationSeconds = userDetails?.lockupDuration?.toNumber() || 0;
   const no_of_days = lockupDurationSeconds
     ? lockupDurationSeconds / (24 * 60 * 60)
@@ -251,11 +231,31 @@ const refetchTokenBalance = useCallback(
 
   if (!publicKey) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-gray-400">
-        <div className="flex flex-col gap-2 items-center">
-          Please connect your wallet to continue
-          <WalletMultiButton />
-        </div>
+      <div className="flex min-h-screen flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-cover bg-center">
+        <div className="absolute inset-0 bg-black/30"></div>
+        <Header />
+        <main className="flex flex-1 items-center justify-center ">
+          <div className="flex flex-col items-center text-center max-w-md space-y-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-[#00FF9C]">
+              Welcome to TRACKER STACKER
+            </h1>
+            <p className="text-gray-400 text-base md:text-lg">
+              Stake your <span className="font-semibold">$TRACKER</span> tokens
+              and earn rewards daily. Connect your wallet to get started.
+            </p>
+            <WalletMultiButton
+              style={{
+                background: "transparent",
+                height: "36px",
+                fontSize: "12px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                color: "#00E6B8",
+                border: "1px solid #00E6B8",
+              }}
+            />
+          </div>
+        </main>
       </div>
     );
   }
@@ -540,8 +540,7 @@ console.log(dailyRewards)
                 </p>
                 <p className="font-semibold whitespace-nowrap">
                   {" "}
-                  {dailyRewards?.toFixed(5)}{" "}
-                  TRACKER/day
+                  {dailyRewards?.toFixed(5)} TRACKER/day
                 </p>
               </div>
             </CardContent>
@@ -568,7 +567,7 @@ console.log(dailyRewards)
                     onClick={() => setLockupPeriod(30)}
                     className={`${
                       lockupPeriod === 30 ? "bg-[#00FF9C]" : ""
-                    } border-none hover:bg-gray-800 flex-1`}
+                    } hover:bg-[#00FF9C]/90 text-primary-foreground border-none text-white flex-1`}
                   >
                     30 days
                   </Button>
@@ -576,11 +575,11 @@ console.log(dailyRewards)
                 <div className="border border-gray-700 rounded-md p-3 bg-gray-800/50">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">You stake</span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                        className="text-xs h-6 px-3 border-gray-600 hover:bg-gray-700"
                         onClick={() => setStakeAmount(tokenBalance)}
                       >
                         Max
@@ -588,7 +587,7 @@ console.log(dailyRewards)
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs h-6 px-2 border-gray-600 hover:bg-gray-700"
+                        className="text-xs h-6 px-3 border-gray-600 hover:bg-gray-700"
                         onClick={() => setStakeAmount(tokenBalance / 2)}
                       >
                         Half
@@ -606,16 +605,16 @@ console.log(dailyRewards)
                         setStakeAmount(Number(e.target.value));
                       }}
                     />
-                    <div className="flex  mt-1 items-center gap-1 justify-center bg-[#00FF9C] text-primary-foreground px-3 py-1 rounded-md">
+                    <div className="flex items-center justify-center gap-1 bg-[#00FF9C] text-destructive-foreground px-4 py-1 rounded-md">
                       <Image
                         src={src}
                         width={24}
                         height={24}
                         alt="token"
-                        className="rounded-full"
+                        className="rounded-full object-fit"
                         data-ai-hint="token icon"
                       />
-                      <span className="font-bold">TRACKER</span>
+                      <span className="font-bold text-black">TRACKER</span>
                     </div>
                   </div>
                   <div className="text-xs text-gray-500 mt-2 flex gap-1.5">

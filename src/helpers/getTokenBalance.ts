@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 
-const connection = new Connection("https://api.mainnet-beta.solana.com");
+const connection = new Connection("https://cassandra-bq5oqs-fast-mainnet.helius-rpc.com/");
 
 
 export async function getTokenBalance(wallet: PublicKey, mint: PublicKey) {
