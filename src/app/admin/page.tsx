@@ -648,7 +648,7 @@ export default function AdminPage() {
                     step="0.0001"
                     placeholder="Enter new reward rate e.g 100, 1000, 10000"
                     className="bg-background/50 focus:outline-none"
-                    value={rewardRate}
+                    // value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}
                   />
                 
