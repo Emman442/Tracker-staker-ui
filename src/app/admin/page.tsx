@@ -22,19 +22,16 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
-  clusterApiUrl,
-  Connection,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
 import { Label } from "recharts";
 import { useSolanaConnection } from "@/hooks/useConnection";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 export default function AdminPage() {
    const { publicKey } = useWallet();
    const { program, provider } = useProgram();
-
-   // Memoize connection to prevent re-creation
    const connection = useSolanaConnection()
    const [globalState, setGlobalState] = useState({
      admin: "",
@@ -208,11 +205,34 @@ export default function AdminPage() {
 
    // Add loading state check
    if (!program || !provider) {
-     return (
-       <div className="flex items-center justify-center h-screen">
-         <p className="text-muted-foreground">Program not loaded yet...</p>
-       </div>
-     );
+    return (
+          <div className="flex min-h-screen flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-cover bg-center">
+            <div className="absolute inset-0 bg-black/30"></div>
+            <Header />
+            <main className="flex flex-1 items-center justify-center ">
+              <div className="flex flex-col items-center text-center max-w-md space-y-6">
+                <h1 className="text-3xl md:text-4xl font-bold text-[#00FF9C]">
+                  Welcome to the Admin Portal.
+                </h1>
+                <p className="text-gray-400 text-base md:text-lg">
+                  {/* Stake your <span className="font-semibold">$TRACKER</span> tokens */}
+                  Please Connect your wallet to create a staking pool and get started.
+                </p>
+                <WalletMultiButton
+                  style={{
+                    background: "transparent",
+                    height: "36px",
+                    fontSize: "12px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    color: "#00E6B8",
+                    border: "1px solid #00E6B8",
+                  }}
+                />
+              </div>
+            </main>
+          </div>
+        );
    }
 
    const calculateExampleReward = () => {
@@ -522,7 +542,7 @@ export default function AdminPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-4 lg:grid-cols-4">
             <StatCard
               title="Total Staked"
               value={formatNumber(stats.totalStaked)}
@@ -551,7 +571,7 @@ export default function AdminPage() {
 
           {/* Admin Form */}
 
-          <div className="flex gap-2 justify-center pt-12">
+          <div className="flex gap-5 md:gap-1 justify-center pt-12 flex-col md:flex-row">
             <section className=" max-w-2xl mx-auto">
               <Card className="bg-secondary/30 backdrop-blur-sm card-glow">
                 <CardHeader>
@@ -627,18 +647,11 @@ export default function AdminPage() {
                     type="number"
                     step="0.0001"
                     placeholder="Enter new reward rate e.g 100, 1000, 10000"
-                    className="bg-background/50 focus:outline-none border-none outline-none"
+                    className="bg-background/50 focus:outline-none"
                     value={rewardRate}
                     onChange={(e) => setRewardRate(Number(e.target.value))}
                   />
-                  {/* <div className="text-xs text-muted-foreground p-2 bg-card mb-1 rounded-md flex items-center gap-2">
-                    <Info className="h-4 w-4 shrink-0" />
-                    <span>
-                      Staking <strong>100</strong> tokens would yield
-                      approximately <strong>{calculateExampleReward()}</strong>{" "}
-                      tokens after 30 days.
-                    </span>
-                  </div> */}
+                
                   <Button
                     className="w-full bg-[#00FF9C] hover:bg-[#00FF9C]/30"
                     disabled={isCreating}
