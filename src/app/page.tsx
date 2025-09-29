@@ -39,6 +39,7 @@ import { formatNumber } from "@/helpers/formatNumber";
 import { BalanceLoader } from "@/components/ui/balance-loader";
 import { calculateClaimable, calculateDailyRewards } from "@/helpers/calculateRewards";
 import { useSolanaConnection } from "@/hooks/useConnection";
+import SocialIcons from "@/components/ui/socialIcons";
 
 export default function StakingPage() {
   const { publicKey } = useWallet();
@@ -506,7 +507,10 @@ console.log(userDetails)
 console.log(dailyRewards)
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground bg-[url('/supa-bg.svg')] bg-no-repeat bg-top bg-contain">
-      <Header />
+      <Header/>
+        <div className="flex justify-end items-center">
+          <SocialIcons/>
+        </div>
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-6xl space-y-6">
           <Card className="backdrop-blur-sm  bg-[#00302C] border border-[#00FF9C]/30 ">

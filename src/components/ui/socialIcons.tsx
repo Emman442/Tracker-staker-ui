@@ -97,18 +97,18 @@ export default function SocialIcons() {
   ];
 
   return (
-    <div className="flex items-center space-x-0.5 sm:space-x-1 bg-[#011b14] border border-[#00ff9c33] rounded-lg px-1.5 sm:px-3  py-1.5">
+    <div className="flex mt-2 pl-5 items-center space-x-1 sm:space-x-1 bg-[#011b14] border border-[#00ff9c33] rounded-lg px-1.5 sm:px-3 py-1.5">
       {socialItems.map((item, index) => (
         <div key={index} className="relative group" onClick={item.onClick}>
           <div className="p-1 sm:p-1 rounded-md border border-[#00ff9c33] bg-[#001a13] transition transform hover:-translate-y-1 hover:scale-105 duration-200 cursor-pointer">
             {item.icon}
           </div>
           {/* Desktop tooltip */}
-          <span className="hidden sm:block absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#001a13] text-[#00ff9c] text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap border border-[#00ff9c33] shadow-lg z-10">
+          <span className="hidden sm:inline-block absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#001a13] text-[#00ff9c] text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition w-max border border-[#00ff9c33] shadow-lg z-10">
             {item.tooltip}
           </span>
           {/* Mobile tooltip */}
-          <span className="sm:hidden absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#001a13] text-[#00ff9c] text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap border border-[#00ff9c33] shadow-lg z-10">
+          <span className="sm:hidden inline-block absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#001a13] text-[#00ff9c] text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition w-max border border-[#00ff9c33] shadow-lg z-10">
             {item.shortTooltip}
           </span>
         </div>

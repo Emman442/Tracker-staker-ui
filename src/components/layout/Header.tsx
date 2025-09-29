@@ -40,7 +40,7 @@ export function Header() {
 
       {/* Social icons + Wallet */}
       <div className="flex items-center gap-2">
-        <SocialIcons />
+        {/* <SocialIcons /> */}
 
         <WalletMultiButton
           style={{
