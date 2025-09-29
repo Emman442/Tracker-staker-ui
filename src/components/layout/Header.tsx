@@ -39,7 +39,7 @@ export function Header() {
       <div className="flex-1" />
 
       {/* Social icons + Wallet */}
-      <div className="flex items-center gap-2">
+      {/* <div className="flex items-center gap-2"> */}
         {/* <SocialIcons /> */}
 
         <WalletMultiButton
@@ -53,7 +53,7 @@ export function Header() {
             border: "1px solid #00E6B8",
           }}
         />
-      </div>
+      {/* </div> */}
     </header>
   );
 }
